@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.tar
+*.csv
+fast_viewer_check.png
+artifacts/
+.pytest_cache/
+.ssh/
