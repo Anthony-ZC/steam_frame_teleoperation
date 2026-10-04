@@ -1,38 +1,28 @@
-"""SteamVR device poses; no rendering, action manifest, or Steam app ID needed."""
+"""SteamVR controller reader; no rendering or Steam app ID needed."""
 import time
-import numpy as np
-from general.poses import Pose
+from general.config import Config
+from general.openvr_sampler import OpenVRSampler, init_openvr
+from general.poses import pose_from_state
+from general.readers import ControllerReader
 
 
-class PoseReader:
-    def __init__(self):
+class SteamVRReader(ControllerReader):
+    def __init__(self, config=None):
         import openvr
+        config = config or Config()
         self.vr = openvr
-        self.system = openvr.init(openvr.VRApplication_Background)
-        self.buffer = (openvr.TrackedDevicePose_t * openvr.k_unMaxTrackedDeviceCount)()
+        self.system = init_openvr(openvr, config.app_type)
+        # Fully tracked controllers only: inferred/degraded tracking is rejected
+        # for this robotics-oriented example.
+        self.sampler = OpenVRSampler(openvr, self.system, config.fields, config.legacy_fallback)
 
     def read(self):
-        vr = self.vr
-        self.system.getDeviceToAbsoluteTrackingPose(
-            vr.TrackingUniverseStanding, 0.0, self.buffer)
+        states = self.sampler.sample()
         received = time.monotonic()
-        result = {}
-        for i, pose in enumerate(self.buffer):
-            if self.system.getTrackedDeviceClass(i) != vr.TrackedDeviceClass_Controller:
-                continue
-            if not pose.bDeviceIsConnected or not pose.bPoseIsValid:
-                continue
-            # Reject inferred/degraded tracking for this robotics-oriented example.
-            if pose.eTrackingResult != vr.TrackingResult_Running_OK:
-                continue
-            role = self.system.getControllerRoleForTrackedDeviceIndex(i)
-            name = {vr.TrackedControllerRole_LeftHand: 'left',
-                    vr.TrackedControllerRole_RightHand: 'right'}.get(role, f'device_{i}')
-            T = np.eye(4)
-            T[:3, :] = np.array([[pose.mDeviceToAbsoluteTracking.m[r][c]
-                                 for c in range(4)] for r in range(3)])
-            result[name] = Pose(name, i, T, received, int(pose.eTrackingResult))
-        return result
+        return {name: pose_from_state(state, received) for name, state in states.items()}
 
     def close(self):
         self.vr.shutdown()
+
+
+PoseReader = SteamVRReader

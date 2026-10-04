@@ -19,7 +19,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $artifactsPath = Join-Path $projectRoot 'artifacts'
 New-Item -ItemType Directory -Path $artifactsPath -Force | Out-Null
 $packagePath = Join-Path $artifactsPath 'frame-pose-sender.tar'
-& $tarExe -cf $packagePath -C $projectRoot non_pc_streaming/__init__.py non_pc_streaming/frame_sender.py non_pc_streaming/vendor general/__init__.py general/pose_wire.py
+& $tarExe -cf $packagePath -C $projectRoot config.toml non_pc_streaming/__init__.py non_pc_streaming/frame_sender.py non_pc_streaming/vendor general/__init__.py general/pose_wire.py general/config.py general/controller_state.py general/openvr_sampler.py general/probe_controller.py general/input
 if ($LASTEXITCODE -ne 0) { throw 'Packaging failed.' }
 $remoteTarget = "steamos@$FrameHost"
 Write-Host 'Authenticate with your headset password if prompted. The password is not saved.'

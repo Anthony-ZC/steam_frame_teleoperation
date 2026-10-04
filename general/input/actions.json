@@ -1,0 +1,132 @@
+{
+  "default_bindings": [
+    {
+      "controller_type": "frame_controller",
+      "binding_url": "bindings_frame_controller.json"
+    },
+    {
+      "controller_type": "knuckles",
+      "binding_url": "bindings_knuckles.json"
+    }
+  ],
+  "actions": [
+    {
+      "name": "/actions/teleop/in/a_click",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/a_touch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/b_click",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/b_touch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/x_click",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/x_touch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/y_click",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/y_touch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/menu_click",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/menu_touch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/system_click",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/system_touch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/bumper_click",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/bumper_touch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/thumbstick_click",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/thumbstick_touch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/thumbrest_touch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/trigger_click",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/trigger_touch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/grip_click",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/grip_touch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/teleop/in/trigger",
+      "type": "vector1"
+    },
+    {
+      "name": "/actions/teleop/in/grip",
+      "type": "vector1"
+    },
+    {
+      "name": "/actions/teleop/in/thumbstick",
+      "type": "vector2"
+    },
+    {
+      "name": "/actions/teleop/in/skeleton_left",
+      "type": "skeleton",
+      "skeleton": "/skeleton/hand/left"
+    },
+    {
+      "name": "/actions/teleop/in/skeleton_right",
+      "type": "skeleton",
+      "skeleton": "/skeleton/hand/right"
+    }
+  ],
+  "action_sets": [
+    {
+      "name": "/actions/teleop",
+      "usage": "leftright"
+    }
+  ],
+  "localization": [
+    {
+      "language_tag": "en_US",
+      "/actions/teleop": "Teleoperation"
+    }
+  ]
+}

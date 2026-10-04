@@ -1,9 +1,10 @@
 """Measure observed changes, not hardware timestamps or sensor sample rate."""
 import time
 from collections import defaultdict
+from general.config import Config
 from streaming.frame_pose import PoseReader
 
-reader = PoseReader()
+reader = PoseReader(Config(fields=frozenset()))  # pose only
 last = {}
 changes = defaultdict(list)
 valid = defaultdict(int)

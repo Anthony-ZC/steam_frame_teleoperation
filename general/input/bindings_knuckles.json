@@ -1,0 +1,182 @@
+{
+  "controller_type": "knuckles",
+  "name": "Teleop probe (knuckles)",
+  "bindings": {
+    "/actions/teleop": {
+      "sources": [
+        {
+          "path": "/user/hand/left/input/a",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/teleop/in/a_click"
+            },
+            "touch": {
+              "output": "/actions/teleop/in/a_touch"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/b",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/teleop/in/b_click"
+            },
+            "touch": {
+              "output": "/actions/teleop/in/b_touch"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/system",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/teleop/in/system_click"
+            },
+            "touch": {
+              "output": "/actions/teleop/in/system_touch"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/thumbstick",
+          "mode": "joystick",
+          "inputs": {
+            "click": {
+              "output": "/actions/teleop/in/thumbstick_click"
+            },
+            "touch": {
+              "output": "/actions/teleop/in/thumbstick_touch"
+            },
+            "position": {
+              "output": "/actions/teleop/in/thumbstick"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/trigger",
+          "mode": "trigger",
+          "inputs": {
+            "click": {
+              "output": "/actions/teleop/in/trigger_click"
+            },
+            "touch": {
+              "output": "/actions/teleop/in/trigger_touch"
+            },
+            "pull": {
+              "output": "/actions/teleop/in/trigger"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/grip",
+          "mode": "trigger",
+          "inputs": {
+            "click": {
+              "output": "/actions/teleop/in/grip_click"
+            },
+            "touch": {
+              "output": "/actions/teleop/in/grip_touch"
+            },
+            "pull": {
+              "output": "/actions/teleop/in/grip"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/a",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/teleop/in/a_click"
+            },
+            "touch": {
+              "output": "/actions/teleop/in/a_touch"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/b",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/teleop/in/b_click"
+            },
+            "touch": {
+              "output": "/actions/teleop/in/b_touch"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/system",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/teleop/in/system_click"
+            },
+            "touch": {
+              "output": "/actions/teleop/in/system_touch"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/thumbstick",
+          "mode": "joystick",
+          "inputs": {
+            "click": {
+              "output": "/actions/teleop/in/thumbstick_click"
+            },
+            "touch": {
+              "output": "/actions/teleop/in/thumbstick_touch"
+            },
+            "position": {
+              "output": "/actions/teleop/in/thumbstick"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/trigger",
+          "mode": "trigger",
+          "inputs": {
+            "click": {
+              "output": "/actions/teleop/in/trigger_click"
+            },
+            "touch": {
+              "output": "/actions/teleop/in/trigger_touch"
+            },
+            "pull": {
+              "output": "/actions/teleop/in/trigger"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/grip",
+          "mode": "trigger",
+          "inputs": {
+            "click": {
+              "output": "/actions/teleop/in/grip_click"
+            },
+            "touch": {
+              "output": "/actions/teleop/in/grip_touch"
+            },
+            "pull": {
+              "output": "/actions/teleop/in/grip"
+            }
+          }
+        }
+      ],
+      "skeleton": [
+        {
+          "output": "/actions/teleop/in/skeleton_left",
+          "path": "/user/hand/left/input/skeleton/left"
+        },
+        {
+          "output": "/actions/teleop/in/skeleton_right",
+          "path": "/user/hand/right/input/skeleton/right"
+        }
+      ]
+    }
+  }
+}

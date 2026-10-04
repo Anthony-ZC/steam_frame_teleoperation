@@ -45,8 +45,8 @@ Open PowerShell at the repository root:
 .\non_pc_streaming\deploy_sender.ps1 -FrameHost FRAME_WIFI_IP -PcAddress PC_LAN_IP
 ```
 
-This creates `artifacts/frame-pose-sender.tar`, packs the sender and shared
-protocol with their package folders, uploads it with SCP to `~/frame_pose_sender`, checks
+This creates `artifacts/frame-pose-sender.tar`, packs the sender, `config.toml`
+and the shared protocol/OpenVR sampler with their package folders, uploads it with SCP to `~/frame_pose_sender`, checks
 Python availability, then runs it through SSH. The documented default user is
 `steamos`. Verify the SSH host fingerprint using a trusted connection before
 accepting a new host. Enter the headset password directly in your terminal.
@@ -96,7 +96,7 @@ matrix ordering, malformed packets, nonfinite values, duplicates, reordering,
 restarts, lost tracking, timeouts, and the standalone synthetic sender process.
 
 The bundled ARM64 OpenVR library and unmodified pyopenvr bindings have licenses
-and provenance under `vendor`. The headset needs Python 3.9+ and a compatible
+and provenance under `vendor`. The headset needs Python 3.11+ (Frame ships 3.12) and a compatible
 local SteamVR runtime. The ARM64 library cannot be loaded on this Windows PC.
 Local OpenVR permissions, pairing, pose updates, and tracking without a PC video
 stream require on-headset verification. If Python or local background OpenVR

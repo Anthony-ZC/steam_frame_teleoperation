@@ -2,13 +2,12 @@
 import argparse
 import ipaddress
 import math
-from pathlib import Path
 import platform
 import secrets
 import socket
-import sys
 import time
-from general.pose_wire import encode
+from general import config as config_file
+from general.pose_wire import MAX_CONTROLLERS, encode
 
 
 def main():
@@ -18,6 +17,7 @@ def main():
     parser.add_argument('--hz', type=float, default=90)
     parser.add_argument('--seconds', type=float)
     parser.add_argument('--demo', action='store_true', help='Synthetic UDP test, no OpenVR required')
+    parser.add_argument('--config', help='config.toml path (default: repository config.toml)')
     args = parser.parse_args()
     try:
         pc = str(ipaddress.IPv4Address(args.pc))
@@ -27,20 +27,24 @@ def main():
             or not 1 <= args.port <= 65535
             or args.seconds is not None and (not math.isfinite(args.seconds) or args.seconds <= 0)):
         parser.error('invalid rate, port, or duration')
+    try:
+        config = config_file.load(args.config)
+    except (OSError, ValueError) as exc:
+        parser.error(f'invalid config: {exc}')
     vr = None
     if not args.demo:
         if platform.system() != 'Linux' or platform.machine().lower() not in ('aarch64', 'arm64'):
             parser.error('live sender must run on Frame Linux ARM64; use --demo on the PC')
-        sys.path.insert(0, str(Path(__file__).resolve().parent / 'vendor'))
+        from general.openvr_sampler import OpenVRSampler, init_openvr, load_openvr
         try:
-            import openvr as vr
-            system = vr.init(vr.VRApplication_Background)
+            vr = load_openvr()
+            system = init_openvr(vr, config.app_type)
         except Exception as exc:
             raise SystemExit(f'Local OpenVR initialization failed: {exc}\n'
                              'Keep Frame awake in its local VR dashboard; PC streaming is not needed.\n'
                              'Check the vendor ARM64 library and local SteamVR runtime.')
-        buffer = (vr.TrackedDevicePose_t * vr.k_unMaxTrackedDeviceCount)()
-        event = vr.VREvent_t()
+        # The FVR1 packet carries poses only, so no input groups are sampled yet.
+        sampler = OpenVRSampler(vr, system, max_controllers=MAX_CONTROLLERS)
     session = secrets.randbits(64)
     sequence = 0
     start = next_tick = last_report = time.monotonic()
@@ -59,27 +63,12 @@ def main():
                               -s, 0, c, -0.4 + 0.12*s]
                     entries.append((device, role, 200, matrix))
             else:
-                quitting = False
-                while system.pollNextEvent(event):
-                    if event.eventType == vr.VREvent_Quit:
-                        system.acknowledgeQuit_Exiting()
-                        quitting = True
-                if quitting:
+                states = sampler.sample()
+                if sampler.quit_requested:
                     break
-                buffer = system.getDeviceToAbsoluteTrackingPose(vr.TrackingUniverseStanding, 0, buffer)
-                roles = set()
-                for device, pose in enumerate(buffer):
-                    if (system.getTrackedDeviceClass(device) != vr.TrackedDeviceClass_Controller
-                            or not pose.bDeviceIsConnected or not pose.bPoseIsValid
-                            or pose.eTrackingResult != vr.TrackingResult_Running_OK):
-                        continue
-                    role = int(system.getControllerRoleForTrackedDeviceIndex(device))
-                    role = role if role in (1, 2) and role not in roles else 0
-                    roles.add(role)
-                    matrix = [pose.mDeviceToAbsoluteTracking.m[r][c] for r in range(3) for c in range(4)]
-                    entries.append((device, role, int(pose.eTrackingResult), matrix))
-                    if len(entries) == 8:
-                        break
+                for state in states.values():
+                    role = {'left': 1, 'right': 2}.get(state.name, 0)
+                    entries.append((state.device_id, role, state.tracking_result, state.matrix))
             sock.sendto(encode(session, sequence, time.monotonic_ns(), entries), (pc, args.port))
             sequence += 1
             if now - last_report >= 2:

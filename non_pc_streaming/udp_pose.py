@@ -1,13 +1,14 @@
-"""Nonblocking UDP snapshot reader compatible with frame_pose.PoseReader."""
+"""Nonblocking UDP snapshot reader implementing general.readers.ControllerReader."""
 import ipaddress
 import socket
 import time
 import numpy as np
 from general.poses import Pose
 from general.pose_wire import MAX_PACKET, decode
+from general.readers import ControllerReader
 
 
-class UDPReader:
+class UDPReader(ControllerReader):
     def __init__(self, bind='0.0.0.0', port=9000, timeout=0.25, sender_ip=None):
         if not 1 <= port <= 65535 or not np.isfinite(timeout) or timeout <= 0:
             raise ValueError('port and timeout must be valid and positive')

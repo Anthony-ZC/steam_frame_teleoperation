@@ -1,0 +1,23 @@
+# Shared settings for the PC viewer/logger and the Frame sender.
+
+[fields]
+# Data groups sampled and passed through. The pose is always included.
+# With buttons, analog and fingers all false, SteamVR Input is never initialized.
+velocity = true   # linear + angular velocity (free: part of the pose struct)
+battery  = true   # battery %, charging, controller type (polled about once per second)
+buttons  = true   # A, B, thumbstick, trigger, grip, system: pressed + touched
+analog   = true   # trigger value, grip value, thumbstick x/y
+fingers  = true   # finger curl x5 and splay x4 (SteamVR skeleton; no legacy fallback)
+
+[relative_pose]
+enabled = true
+# "own_frame":  T_rel = T0^-1 * T  (motion in each controller's initial frame)
+# "world_axes": p - p0 and R * R0^T (motion along SteamVR standing axes)
+mode = "own_frame"
+settle_seconds = 3.0  # reference captured this long after launch; Reset Pose recaptures
+
+[input]
+# background | overlay | scene. Try overlay/scene if input stays empty while
+# another VR app (e.g. SteamVR Home) has focus. scene takes the headset focus.
+app_type = "background"
+legacy_fallback = true  # use the legacy controller state when SteamVR Input is inactive

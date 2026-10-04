@@ -1,7 +1,8 @@
-"""Shared pose model and hardware-free synthetic trajectories."""
+"""Shared pose model (PC side, numpy)."""
 from dataclasses import dataclass
-import time
+from typing import Optional
 import numpy as np
+from general.controller_state import ControllerState
 
 
 @dataclass
@@ -11,26 +12,15 @@ class Pose:
     T: np.ndarray  # device-local -> SteamVR standing space
     received_monotonic: float  # host receipt time, NOT sensor capture time
     tracking_result: int
+    velocity: Optional[np.ndarray] = None          # m/s, same frame as T
+    angular_velocity: Optional[np.ndarray] = None  # rad/s, same frame as T
+    state: Optional[ControllerState] = None        # buttons, fingers, battery...
 
 
-class DemoReader:
-    """Synthetic trajectories solely for checking scripts without VR hardware."""
-    def __init__(self):
-        self.started = time.monotonic()
-
-    def read(self):
-        now = time.monotonic()
-        t = now - self.started
-        result = {}
-        for i, name in enumerate(('left', 'right')):
-            a = t + i * np.pi
-            c, s = np.cos(a), np.sin(a)
-            T = np.eye(4)
-            T[:3, :3] = [[c, 0, s], [0, 1, 0], [-s, 0, c]]
-            T[:3, 3] = [(-0.3 if i == 0 else 0.3) + 0.12*c,
-                          1.2 + 0.08*np.sin(2*a), -0.4 + 0.12*s]
-            result[name] = Pose(name, i, T, now, 200)
-        return result
-
-    def close(self):
-        pass
+def pose_from_state(state, received):
+    T = np.eye(4)
+    T[:3, :] = np.array(state.matrix, dtype=float).reshape(3, 4)
+    velocity = None if state.velocity is None else np.array(state.velocity, dtype=float)
+    angular = None if state.angular_velocity is None else np.array(state.angular_velocity, dtype=float)
+    return Pose(state.name, state.device_id, T, received, state.tracking_result,
+                velocity, angular, state)
