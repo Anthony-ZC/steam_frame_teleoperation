@@ -191,8 +191,8 @@ def main():
     except Exception as exc:
         hint = 'Check the UDP bind address/port.' if args.udp else 'Start SteamVR and connect Frame to the PC first.'
         raise SystemExit(f'Pose reader initialization failed: {exc}\n{hint}')
-    # The FVR1 UDP packet carries poses only.
-    fields = frozenset() if args.udp else config.fields
+    # In UDP mode, groups the sender omitted simply show as "no data".
+    fields = config.fields
     tracker = None
     if config.relative_enabled:
         settle = 0.0 if args.save_preview or args.benchmark else config.settle_seconds
@@ -327,11 +327,14 @@ def main():
             for name, panel in panels.items():
                 panel.update(poses.get(name), shown.get(name), frame_label)
             if tracker and tracker.remaining(now) > 0:
-                banner.set_text(f'Capturing reference in {tracker.remaining(now):.1f} s: hold controllers still')
+                text = f'Capturing reference in {tracker.remaining(now):.1f} s: hold controllers still'
             elif tracker:
-                banner.set_text(f'Relative pose ({tracker.mode}): Reset Pose button or R key recaptures')
+                text = f'Relative pose ({tracker.mode}): Reset Pose button or R key recaptures'
             else:
-                banner.set_text('Absolute pose (relative_pose.enabled = false in config.toml)')
+                text = 'Absolute pose (relative_pose.enabled = false in config.toml)'
+            if getattr(getattr(reader, 'sampler', None), 'dashboard_visible', False):
+                text += '\nSteamVR dashboard is open: it takes button/finger input; close it in the headset'
+            banner.set_text(text)
             status = ', '.join(sorted(poses)) or 'NONE: check tracking/connection'
             if status != last_status:
                 label = 'SYNTHETIC DEMO' if args.demo else 'Live Frame UDP poses' if args.udp else 'Live SteamVR poses'

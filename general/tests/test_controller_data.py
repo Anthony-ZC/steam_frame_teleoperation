@@ -9,7 +9,9 @@ from types import SimpleNamespace
 import numpy as np
 from general import config as config_file
 from general.config import Config, FIELD_GROUPS
-from general.openvr_sampler import OpenVRSampler, decode_legacy
+from general.openvr_sampler import OpenVRSampler, decode_legacy, runtime_report
+from diagnostics.measure_pose_rate import measure
+from diagnostics.measure_stream_load import aggregate
 from general.poses import Pose
 from general.readers import DemoReader
 from general.relative_pose import RelativePoseTracker, euler_yxz_deg
@@ -165,7 +167,7 @@ def fake_openvr(devices, legacy=None, input_error=True, quit_event=False):
         VREvent_Quit=700, TrackingUniverseStanding=1, TrackedDeviceClass_Controller=2,
         TrackingResult_Running_OK=200, Prop_DeviceBatteryPercentage_Float=1012,
         Prop_DeviceIsCharging_Bool=1011, Prop_ControllerType_String=7000,
-        VRInput=no_input if input_error else None)
+        VRInput=no_input if input_error else None, VROverlay=no_input)
     return vr, system
 
 
@@ -234,6 +236,68 @@ class DemoAndViewerTests(unittest.TestCase):
                                         capture_output=True, text=True, timeout=60)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertGreater(out.stat().st_size, 10000)
+
+
+class DiagnosticsTests(unittest.TestCase):
+    def test_typeperf_aggregate(self):
+        host = r'\\PC'
+        header = ['(PDH-CSV 4.0)', host + r'\Processor(_Total)\% Processor Time',
+                  host + r'\Process(vrserver)\% Processor Time', host + r'\Process(vrserver#1)\% Processor Time',
+                  host + r'\Process(chrome)\% Processor Time',
+                  host + r'\GPU Engine(pid_1_luid_0x0_0x1_phys_0_eng_0_engtype_3D)\Utilization Percentage',
+                  host + r'\GPU Engine(pid_2_luid_0x0_0x1_phys_0_eng_0_engtype_3D)\Utilization Percentage',
+                  host + r'\GPU Engine(pid_2_luid_0x0_0x1_phys_0_eng_5_engtype_VideoEncode)\Utilization Percentage',
+                  host + r'\GPU Engine(pid_3_luid_0x0_0x1_phys_0_eng_6_engtype_VideoEncode)\Utilization Percentage']
+        row = ['10/04/2026 12:00:00.000', '25.0', '40', '8', '90', '30', '20', '70', '']
+        sample = aggregate(header, row, cores=4)
+        self.assertEqual(sample['cpu_total'], 25.0)
+        self.assertEqual(sample['processes'], {'vrserver': 12.0})  # (40 + 8) / 4 cores; chrome ignored
+        self.assertEqual(sample['gpu'], {'3D': 50.0, 'VideoEncode': 70.0})  # same engine summed, engines maxed
+
+    def test_measure_on_demo(self):
+        stats = measure(DemoReader(()), seconds=0.3)
+        self.assertGreater(stats['polls'], 10)
+        self.assertEqual(sorted(stats['devices']), [0, 1])
+        self.assertGreater(stats['devices'][0]['rate_hz'], 10)
+        self.assertIn('gaps', stats['devices'][0])
+
+    def test_relative_latency_recovers_delay(self):
+        from diagnostics.measure_latency import analyze as latency
+        rng = np.random.default_rng(0)
+        knots = np.cumsum(rng.normal(0, 0.15, (40, 3)), axis=0)  # random hand path, one knot per 0.25 s
+        path = lambda t: np.column_stack([np.interp(t, np.arange(40) * 0.25, knots[:, k]) for k in range(3)])
+        R = rot_y(1.0)  # standalone runtime: different origin and heading
+        streaming_t = np.arange(0.0, 9.0, 0.001)
+        standalone_t = np.arange(0.0, 9.0, 1 / 200)
+        traces = {'streaming': {'left': [(t, *p) for t, p in zip(streaming_t, path(streaming_t))]},
+                  'standalone': {'left': [(t + 0.030, *(R @ p + [5, 0, -2]))  # arrives 30 ms later
+                                          for t, p in zip(standalone_t, path(standalone_t))]}}
+        r = latency(traces)['left']
+        self.assertAlmostEqual(r['standalone_minus_streaming_ms'], 30.0, delta=2.0)
+        self.assertGreater(r['correlation'], 0.9)
+
+    def test_tracking_updates_from_velocity(self):
+        from diagnostics.measure_udp_rate import analyze as flow
+        packets = []
+        for i in range(100):  # 1 kHz packets, positions always change, velocity only every 4th
+            matrix = (0.0,) * 3 + (i * 0.001,) + (0.0,) * 8
+            packets.append((i * 1_000_000, i, i * 1_000_000, frozenset({'velocity'}),
+                            {'right': (matrix, (float(i // 4), 0.0, 0.0))}))
+        c = flow(packets, same_clock=True)['controllers']['right']
+        self.assertAlmostEqual(c['pose_update_hz'], 99 / 0.099, delta=1)
+        self.assertAlmostEqual(c['tracking_update_hz'], 24 / 0.099, delta=1)
+        self.assertAlmostEqual(c['tracking_interval_ms']['median'], 4.0)
+
+    def test_probe_button_changes(self):
+        from diagnostics.probe_controller import button_changes
+        before = {'grip': (False, False), 'trigger': (False, True), 'a': (False, True)}
+        after = {'grip': (False, True), 'trigger': (True, True), 'a': (False, False)}
+        self.assertEqual(button_changes(before, after), ['grip touched', 'trigger PRESSED', 'a released'])
+
+    def test_runtime_report(self):
+        lines = runtime_report()
+        self.assertTrue(lines[0].startswith('Python'))
+        self.assertTrue(any('openvrpaths.vrpath' in line for line in lines))
 
 
 if __name__ == '__main__':

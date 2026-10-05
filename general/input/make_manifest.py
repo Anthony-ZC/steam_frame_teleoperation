@@ -1,7 +1,7 @@
 """Regenerate actions.json and bindings_<type>.json in this folder.
 
 Run `python -m general.input.make_manifest` after adding a controller type
-(as reported by `python -m general.probe_controller`) to CONTROLLER_TYPES.
+(as reported by `python -m diagnostics.probe_controller`) to CONTROLLER_TYPES.
 Bindings can also be edited live in SteamVR > Settings > Controllers.
 """
 import json

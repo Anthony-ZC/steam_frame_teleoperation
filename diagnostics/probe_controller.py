@@ -2,13 +2,13 @@
 
 Touch, press and squeeze every control while it runs; it prints changes live and
 ends with a per-field summary. Numpy-free: runs on the PC (SteamVR streaming)
-or on Frame itself (`python3 -m general.probe_controller`).
+or on Frame itself (`python3 -m diagnostics.probe_controller`).
 """
 import argparse
 import time
 from general import config as config_file
 from general.config import FIELD_GROUPS
-from general.openvr_sampler import LEGACY_LAYOUTS, OpenVRSampler, init_openvr, load_openvr
+from general.openvr_sampler import LEGACY_LAYOUTS, OpenVRSampler, init_openvr, load_openvr, runtime_report
 
 PROPERTIES = (('model', 'String', 'Prop_ModelNumber_String'),
               ('manufacturer', 'String', 'Prop_ManufacturerName_String'),
@@ -42,6 +42,18 @@ def rounded(value):
     return value
 
 
+def button_changes(previous, current):
+    """Readable transitions between two {button: (pressed, touched)} dicts."""
+    lines = []
+    for button, (pressed, touched) in current.items():
+        was_pressed, was_touched = previous.get(button, (False, False))
+        if pressed != was_pressed:
+            lines.append(f'{button} {"PRESSED" if pressed else "unpressed"}')
+        elif touched != was_touched:
+            lines.append(f'{button} {"touched" if touched else "released"}')
+    return lines
+
+
 def properties(vr, system, device):
     values = {}
     for name, kind, prop in PROPERTIES:
@@ -62,13 +74,19 @@ def main():
     parser.add_argument('--app-type', choices=('background', 'overlay', 'scene'),
                         help='Override input.app_type from config.toml')
     parser.add_argument('--config', help='config.toml path')
+    parser.add_argument('--quiet', action='store_true', help='Only print the summary, not live changes')
     args = parser.parse_args()
     config = config_file.load(args.config)
+    print('=== Environment ===')
+    for line in runtime_report():
+        print(line, flush=True)
+    print()
     vr = load_openvr()
     try:
         system = init_openvr(vr, args.app_type or config.app_type)
     except Exception as exc:
-        raise SystemExit(f'OpenVR initialization failed: {exc}\nStart SteamVR and connect Frame first.')
+        raise SystemExit(f'OpenVR initialization failed: {type(exc).__name__}: {exc}\n'
+                         'PC: start SteamVR and connect Frame. Frame: keep the local VR runtime awake.')
     try:
         # Actions only (no legacy fallback) so the two input paths are reported separately.
         sampler = OpenVRSampler(vr, system, FIELD_GROUPS, legacy_fallback=False)
@@ -87,6 +105,8 @@ def main():
         print(f'\nTouch, press and move every control and finger for {args.seconds:g} s...\n')
         legacy_last, legacy_seen, legacy_axes = {}, {}, {}
         action_last, changed, present, speed = {}, {}, {}, {}
+        dashboard_seen = False
+        last_print = {}
         start = time.monotonic()
         while time.monotonic() - start < args.seconds:
             t = time.monotonic() - start
@@ -105,7 +125,12 @@ def main():
                 axes = legacy_axes.setdefault(device, set())
                 axes.update(i for i, a in enumerate(state[2]) if a != (0.0, 0.0))
                 legacy_last[device] = state
-            for name, s in sampler.sample().items():
+            states = sampler.sample()
+            if sampler.dashboard_visible and not dashboard_seen:
+                print(f'{t:5.1f}s SteamVR dashboard is open: it receives all controller input, '
+                      'so buttons/analog/fingers read as unavailable. Close it in the headset.')
+            dashboard_seen |= sampler.dashboard_visible
+            for name, s in states.items():
                 if s.velocity:
                     v = sum(x*x for x in s.velocity) ** 0.5
                     speed[name] = max(speed.get(name, 0), v)
@@ -118,8 +143,14 @@ def main():
                         previous = action_last.get((name, key))
                         if previous is not None and value != previous:
                             changed.setdefault(name, set()).add(group)
-                            if group in ('buttons', 'analog', 'fingers'):
-                                print(f'{t:5.1f}s actions {name}.{key} = {value}')
+                            if args.quiet:
+                                pass
+                            elif key == 'buttons':
+                                for line in button_changes(previous, value):
+                                    print(f'{t:5.1f}s {name} {line}')
+                            elif group in ('analog', 'fingers') and t - last_print.get((name, key), -1) >= 0.5:
+                                print(f'{t:5.1f}s {name} {key} = {value}')  # at most 2 lines/s per value
+                                last_print[(name, key)] = t
                         action_last[(name, key)] = value
             time.sleep(1 / args.hz)
         print('\n=== Summary ===')
@@ -137,6 +168,8 @@ def main():
                 print(f'  {group:9} {status}{extra}')
         if not present:
             print('No tracked controllers sampled.')
+        if dashboard_seen:
+            print('NOTE: the SteamVR dashboard was open during the run; input groups may be understated.')
     finally:
         vr.shutdown()
 

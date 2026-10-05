@@ -40,6 +40,38 @@ def load_openvr():
     return openvr
 
 
+def runtime_report():
+    """Lines describing how libopenvr_api will find the runtime, for failed-init diagnosis."""
+    import json
+    import os
+    lines = [f'Python {platform.python_version()} on {platform.system()} {platform.machine()}']
+    if platform.system() == 'Windows':
+        vrpath = Path(os.environ.get('LOCALAPPDATA', '')) / 'openvr' / 'openvrpaths.vrpath'
+    else:
+        vrpath = Path.home() / '.config' / 'openvr' / 'openvrpaths.vrpath'
+    try:
+        paths = json.loads(vrpath.read_text(encoding='utf-8'))
+        lines.append(f'Runtime registry {vrpath}:')
+        for key in ('runtime', 'config'):
+            lines.append(f'  {key}: {", ".join(paths.get(key) or []) or "-"}')
+    except FileNotFoundError:
+        lines.append(f'Runtime registry {vrpath}: MISSING (OpenVR cannot locate a runtime)')
+    except (OSError, ValueError) as exc:
+        lines.append(f'Runtime registry {vrpath}: unreadable ({exc})')
+    proc = Path('/proc')
+    if proc.is_dir():
+        names = set()
+        for comm in proc.glob('[0-9]*/comm'):
+            try:
+                name = comm.read_text().strip()
+            except OSError:
+                continue
+            if name.startswith('vr') or 'steam' in name.lower():
+                names.add(name)
+        lines.append(f'VR/Steam processes: {", ".join(sorted(names)) or "none (a background app needs vrserver)"}')
+    return lines
+
+
 def init_openvr(vr, app_type='background'):
     return vr.init(getattr(vr, APP_TYPES[app_type]))
 
@@ -115,6 +147,10 @@ class OpenVRSampler:
         self.event = vr.VREvent_t()
         self.properties = {}  # device -> (refresh time, values)
         self.quit_requested = False
+        # While the SteamVR dashboard is open it receives all controller input, and
+        # other apps' actions turn inactive. Checked about once per second.
+        self.dashboard_visible = False
+        self._dashboard_checked = 0.0
         self.input = self.input_error = None
         if self.fields & INPUT_GROUPS:
             try:
@@ -136,6 +172,13 @@ class OpenVRSampler:
             except Exception as exc:
                 self.input_error = f'{type(exc).__name__}: {exc}'
                 self.input = None
+            now = time.monotonic()
+            if now - self._dashboard_checked >= 1.0:
+                self._dashboard_checked = now
+                try:
+                    self.dashboard_visible = bool(vr.VROverlay().isDashboardVisible())
+                except Exception:
+                    self.dashboard_visible = False
         result, roles = {}, set()
         for device, pose in enumerate(self.buffer):
             if (system.getTrackedDeviceClass(device) != vr.TrackedDeviceClass_Controller

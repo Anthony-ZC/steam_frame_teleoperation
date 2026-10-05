@@ -3,7 +3,7 @@ import ipaddress
 import socket
 import time
 import numpy as np
-from general.poses import Pose
+from general.poses import pose_from_state
 from general.pose_wire import MAX_PACKET, decode
 from general.readers import ControllerReader
 
@@ -25,6 +25,7 @@ class UDPReader(ControllerReader):
         self.last_received = 0.0
         self.sender_monotonic_ns = None
         self.poses = {}
+        self.groups = frozenset()  # field groups in the latest packet
         self.accepted_packets = self.rejected_packets = 0
 
     def read(self):
@@ -39,7 +40,7 @@ class UDPReader(ControllerReader):
                 self.rejected_packets += 1
                 continue
             try:
-                session, sequence, sender_ns, entries = decode(payload)
+                session, sequence, sender_ns, groups, states = decode(payload)
             except (ValueError, OverflowError):
                 self.rejected_packets += 1
                 continue
@@ -51,13 +52,9 @@ class UDPReader(ControllerReader):
                     and self.sequence is not None and sequence <= self.sequence):
                 self.rejected_packets += 1
                 continue
-            poses = {}
-            for device, role, tracking, matrix in entries:
-                name = {1: 'left', 2: 'right'}.get(role, f'device_{device}')
-                transform = np.eye(4)
-                transform[:3, :] = np.array(matrix).reshape(3, 4)
-                poses[name] = Pose(name, device, transform, received, tracking)
-            self.poses = poses  # empty snapshot immediately clears lost tracking
+            # An empty snapshot immediately clears lost tracking.
+            self.poses = {s.name: pose_from_state(s, received) for s in states}
+            self.groups = groups
             self.session, self.sequence = session, sequence
             self.source_ip = source[0]
             self.sender_monotonic_ns = sender_ns

@@ -1,24 +1,31 @@
 # PC streaming mode
 
-This folder contains code that reads poses from **PC SteamVR**. Frame needs an
-active PC streaming connection and tracking must remain awake.
+Reads controller data from **PC SteamVR** while Frame streams to the PC.
+Start SteamVR and the stream (a minimized desktop is enough), **close the
+SteamVR dashboard** in the headset (it otherwise takes all button and finger
+input), and keep the controllers awake and in view.
 
-Run from the repository root with the project's virtual environment:
+| File | Purpose |
+|---|---|
+| `frame_pose.py` | `SteamVRReader`: starts OpenVR on the PC; a thin wrapper around the shared `general/openvr_sampler.py` (also used by the Frame sender) |
+| `read_poses.py` | prints poses and inputs, optionally logs CSV |
+| `requirements.txt` | `openvr` (pyopenvr) |
+
+From the repository root:
 
 ```powershell
-.\.venv\Scripts\python.exe -m general.visualize_poses
-.\.venv\Scripts\python.exe -m streaming.read_poses
-.\.venv\Scripts\python.exe -m streaming.read_poses --demo --seconds 2
-.\.venv\Scripts\python.exe -m streaming.diagnose_tracking background
-.\.venv\Scripts\python.exe -m streaming.measure_pose_rate
+python -m general.visualize_poses
+python -m streaming.read_poses
+python -m streaming.read_poses --csv artifacts/poses.csv --seconds 30
+python -m streaming.read_poses --demo --seconds 2
 ```
 
-`read_poses` prints poses and inputs twice per second, polls at 100 Hz by
-default, applies the relative pose from `config.toml`, and accepts `--hz`,
-`--csv`, `--seconds` and `--config`. `diagnose_tracking scene` temporarily takes
-VR scene focus to compare the compositor pose path. The rate utility measures
-changes in returned poses, not hardware measurement timestamps.
+`read_poses` prints twice per second, polls at 100 Hz by default, applies the
+relative pose from `config.toml`, and accepts `--hz`, `--csv`, `--seconds` and
+`--config`. CSV columns follow `[fields]`; `pose_frame` says whether a row is
+absolute (during the settle countdown) or relative.
 
-`SteamVRReader` in `frame_pose.py` is a thin wrapper around the shared
-`general/openvr_sampler.py`, which the Frame sender also uses. The viewer,
-controller probe, pose model, config and demo reader live in `general/`.
+With the stream off, SteamVR still reports the controllers as tracked but the
+poses freeze. Probes and measurements live in
+[diagnostics/](../diagnostics/README.md); measured load and stability are in the
+root README [Benchmarks](../README.md#benchmarks).
