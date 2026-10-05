@@ -1,0 +1,101 @@
+{
+  "label": "wlanap_200hz",
+  "started": "2026-10-04 15:16:08",
+  "seconds": 30.0,
+  "cores": 24,
+  "pose": null,
+  "pose_error": "InitError_Init_HmdNotFoundPresenceFailed: ",
+  "load_samples": 30,
+  "cpu_total": {
+    "mean": 12.53656432559084,
+    "p95": 19.05976635228318,
+    "max": 20.1239282005378
+  },
+  "gpu": {
+    "": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "3D": {
+      "mean": 2.466306977570713,
+      "p95": 3.019809963469617,
+      "max": 3.0497034329738253
+    },
+    "Compute": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "Copy": {
+      "mean": 0.36278272191530053,
+      "p95": 0.6270560328685554,
+      "max": 0.7465455552072277
+    },
+    "GSC": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "JPEG_Decode_3": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "OFA_0": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "Security": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "Security_1": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "VR": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "VideoDecode": {
+      "mean": 0.970362636988622,
+      "p95": 1.473054113761675,
+      "max": 1.5187637204344373
+    },
+    "VideoEncode": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "VideoProcessing": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    }
+  },
+  "vr_processes_cpu": {},
+  "vr_processes_cpu_total": 0,
+  "nvidia": {
+    "gpu_util": {
+      "mean": 2.2857142857142856,
+      "p95": 4.0,
+      "max": 5.0
+    },
+    "encoder_util": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "encoder_sessions_max": 0.0,
+    "encoder_fps": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "left": {
+    "standalone_minus_streaming_ms": -15.197356938992684,
+    "correlation": 0.9946045368827029,
+    "streaming_samples_hz": 930.9331699614407,
+    "standalone_samples_hz": 100.05017358706262,
+    "mean_speed_m_s": 0.4770357137303144,
+    "window_s": 19.385322899994208
+  },
+  "right": {
+    "standalone_minus_streaming_ms": -1.8633579858503062,
+    "correlation": 0.9782048163116428,
+    "streaming_samples_hz": 930.9332631231657,
+    "standalone_samples_hz": 100.05017358706262,
+    "mean_speed_m_s": 0.5488852670367439,
+    "window_s": 19.38532089999353
+  }
+}

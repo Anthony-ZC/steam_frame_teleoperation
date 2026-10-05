@@ -1,0 +1,126 @@
+{
+  "packets": 6001,
+  "rejected": {},
+  "duration_s": 29.9953926,
+  "rate_hz": 200.03072071808788,
+  "lost": 0,
+  "loss_pct": 0.0,
+  "duplicates": 0,
+  "reordered": 0,
+  "groups": [
+    "analog",
+    "battery",
+    "buttons",
+    "fingers",
+    "velocity"
+  ],
+  "arrival_ms": {
+    "min": 0.0198,
+    "median": 4.9945,
+    "p95": 6.2151,
+    "p99": 7.3259,
+    "max": 37.9074
+  },
+  "send_ms": {
+    "min": 1.965263,
+    "median": 4.998051,
+    "p95": 5.599442,
+    "p99": 6.09469,
+    "max": 7.610486
+  },
+  "arrival_gaps": 13,
+  "delay_jitter_ms": {
+    "min": 0.0,
+    "median": 0.661676,
+    "p95": 1.741351,
+    "p99": 4.255858,
+    "max": 33.260417
+  },
+  "latency_ms": {
+    "min": 0.4638955390625,
+    "median": 0.995256375,
+    "p95": 2.12203084375,
+    "p99": 4.65124034375,
+    "max": 33.793341046875
+  },
+  "latency_source": "clock sync",
+  "controllers": {
+    "left": {
+      "present_pct": 100.0,
+      "pose_update_hz": 200.03072071808788,
+      "repeated_pct": 0.0,
+      "update_interval_ms": {
+        "min": 0.0198,
+        "median": 4.9945,
+        "p95": 6.2151,
+        "p99": 7.3259,
+        "max": 37.9074
+      },
+      "tracking_update_hz": 172.72652734006888,
+      "tracking_interval_ms": {
+        "min": 0.0198,
+        "median": 5.0671,
+        "p95": 10.2584,
+        "p99": 11.3995,
+        "max": 37.9074
+      },
+      "new_sample_latency_ms": {
+        "min": 0.4638955390625,
+        "median": 0.9959682890625,
+        "p95": 2.120362734375,
+        "p99": 4.738061109375,
+        "max": 33.793341046875
+      },
+      "new_sample_bound_ms": {
+        "min": 1.965263,
+        "median": 4.998207,
+        "p95": 5.603089,
+        "p99": 6.101669,
+        "max": 7.610486
+      }
+    },
+    "right": {
+      "present_pct": 100.0,
+      "pose_update_hz": 200.03072071808788,
+      "repeated_pct": 0.0,
+      "update_interval_ms": {
+        "min": 0.0198,
+        "median": 4.9945,
+        "p95": 6.2151,
+        "p99": 7.3259,
+        "max": 37.9074
+      },
+      "tracking_update_hz": 175.52695743012214,
+      "tracking_interval_ms": {
+        "min": 0.0198,
+        "median": 5.0573,
+        "p95": 10.1749,
+        "p99": 11.4837,
+        "max": 43.0495
+      },
+      "new_sample_latency_ms": {
+        "min": 0.4638955390625,
+        "median": 0.994597671875,
+        "p95": 2.1314809375,
+        "p99": 4.889775375,
+        "max": 33.793341046875
+      },
+      "new_sample_bound_ms": {
+        "min": 1.965263,
+        "median": 4.998208,
+        "p95": 5.600692,
+        "p99": 6.087711,
+        "max": 7.610486
+      }
+    }
+  },
+  "sync": {
+    "bursts": 15,
+    "exchanges": 598,
+    "offset_ms": -34923193.69773503,
+    "rtt_min_ms": 0.992696,
+    "rtt_median_ms": 1.851652,
+    "error_bound_ms": 0.496348,
+    "drift_ppm": 21.685247881771573
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "label": "off",
+  "started": "2026-10-04 14:11:46",
+  "seconds": 20.0,
+  "cores": 24,
+  "pose": {
+    "elapsed_s": 20.000569599997107,
+    "polls": 12198,
+    "devices": {
+      "1": {
+        "valid_polls": 12198,
+        "changes": 0,
+        "rate_hz": 0.0
+      },
+      "2": {
+        "valid_polls": 12198,
+        "changes": 0,
+        "rate_hz": 0.0
+      }
+    }
+  },
+  "pose_error": null,
+  "load_samples": 20,
+  "cpu_total": {
+    "mean": 10.605792260636616,
+    "p95": 15.869412755704971,
+    "max": 15.869412755704971
+  },
+  "gpu": {
+    "": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "3D": {
+      "mean": 0.4147096645866209,
+      "p95": 0.8980658164142024,
+      "max": 0.8980658164142024
+    },
+    "Compute": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "Copy": {
+      "mean": 0.008878655591106599,
+      "p95": 0.04486170288748979,
+      "max": 0.04486170288748979
+    },
+    "GSC": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "JPEG_Decode_3": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "OFA_0": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "Security": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "Security_1": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "VR": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "VideoDecode": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "VideoEncode": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "VideoProcessing": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    }
+  },
+  "vr_processes_cpu": {
+    "vrserver": 0.17664430525313612,
+    "vrmonitor": 0.0945855010554275,
+    "vrwebhelper": 0.07251605278371856,
+    "steamwebhelper": 0.05985890127702862,
+    "vrcompositor": 0.05363987896156208,
+    "vrdashboard": 0.0472752348821803,
+    "steam": 0.02525091319643073,
+    "steamservice": 0.006294840126979434
+  },
+  "vr_processes_cpu_total": 0.5360656275364634,
+  "nvidia": {
+    "gpu_util": {
+      "mean": 0.3157894736842105,
+      "p95": 1.0,
+      "max": 1.0
+    },
+    "encoder_util": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "encoder_sessions_max": 1.0,
+    "encoder_fps": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    }
+  }
+}
