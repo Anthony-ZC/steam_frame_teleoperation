@@ -50,7 +50,7 @@ mkdir -p artifacts
 tar -cf artifacts/frame-pose-sender.tar --exclude=__pycache__ config.toml \
     non_pc_streaming/__init__.py non_pc_streaming/frame_sender.py non_pc_streaming/vendor \
     general/__init__.py general/pose_wire.py general/config.py general/controller_state.py \
-    general/demo.py general/openvr_sampler.py general/input \
+    general/clock_sync.py general/demo.py general/openvr_sampler.py general/input \
     diagnostics/__init__.py diagnostics/probe_controller.py
 ssh steamos@FRAME_IP 'mkdir -p ~/frame_pose_sender'
 scp artifacts/frame-pose-sender.tar steamos@FRAME_IP:frame_pose_sender/sender.tar
@@ -73,6 +73,17 @@ Repeat the `tar`/`scp`/extract steps after changing code or `config.toml`.
 3. Live sender: only the groups the probe showed as available carry data;
    the rest arrive as "no data".
 
+## Clock sync (optional, for absolute latency)
+
+Off by default. `frame_sender.py --sync` (deploy script: `-Sync`) starts a small
+responder (`general/clock_sync.py`) on UDP 9001 (`--sync-port`) that answers
+only the `--pc` address. The PC measurement tools (`measure_udp_rate --sync`,
+`measure_latency --sync`) send NTP-style requests and estimate the Frame/PC
+clock offset and drift during the run, which turns the packet timestamp into
+absolute latency. Accuracy is bounded by half the fastest round trip (reported
+with every result). The PC needs no firewall rule: the replies answer its own
+requests. Normal use (no `--sync`) opens no extra port.
+
 ## Receiver
 
 `--udp` in the viewer listens on UDP 9000 (`--port`, `--bind PC_IP` to limit
@@ -93,7 +104,8 @@ The sender emits **FVR2** (`general/pose_wire.py`); the receiver also accepts
 the older pose-only FVR1.
 
 - Header (32 B): magic, version, count, group bitmask, random session ID,
-  sequence number, sender timestamp (diagnostic only; clocks are not synced).
+  sequence number, sender timestamp = the moment the poses were read on Frame
+  (`perf_counter_ns`; meaningful on the PC only with clock sync, below).
 - Per controller: pose entry (56 B: device, role, input source, tracking
   result, 3x4 matrix), then one block per enabled `[fields]` group: velocity
   (24 B), battery (5 B), buttons (6 B: has-data, pressed, touched bitmasks),

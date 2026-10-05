@@ -5,6 +5,7 @@ param(
     [int]$Hz = 90,
     [switch]$Demo,
     [switch]$Probe,
+    [switch]$Sync,
     [int]$ProbeSeconds = 20
 )
 $ErrorActionPreference = 'Stop'
@@ -26,7 +27,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $artifactsPath = Join-Path $projectRoot 'artifacts'
 New-Item -ItemType Directory -Path $artifactsPath -Force | Out-Null
 $packagePath = Join-Path $artifactsPath 'frame-pose-sender.tar'
-& $tarExe -cf $packagePath --exclude=__pycache__ -C $projectRoot config.toml non_pc_streaming/__init__.py non_pc_streaming/frame_sender.py non_pc_streaming/vendor general/__init__.py general/pose_wire.py general/config.py general/controller_state.py general/demo.py general/openvr_sampler.py general/input diagnostics/__init__.py diagnostics/probe_controller.py
+& $tarExe -cf $packagePath --exclude=__pycache__ -C $projectRoot config.toml non_pc_streaming/__init__.py non_pc_streaming/frame_sender.py non_pc_streaming/vendor general/__init__.py general/pose_wire.py general/config.py general/controller_state.py general/clock_sync.py general/demo.py general/openvr_sampler.py general/input diagnostics/__init__.py diagnostics/probe_controller.py
 if ($LASTEXITCODE -ne 0) { throw 'Packaging failed.' }
 $remoteTarget = "steamos@$FrameHost"
 Write-Host 'Authenticate with your headset password if prompted. The password is not saved.'
@@ -45,6 +46,8 @@ if ($Probe) {
     return
 }
 $demoOption = if ($Demo) { ' --demo' } else { '' }
+# -Sync: answer clock-sync requests (absolute latency measurement); off by default.
+if ($Sync) { $demoOption += ' --sync' }
 Write-Host 'Starting the sender. Keep this terminal open; Ctrl+C stops it.'
 & $sshExe -t $remoteTarget "cd ~/frame_pose_sender && python3 -m non_pc_streaming.frame_sender --pc $PcAddress --port $Port --hz $Hz$demoOption"
 if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 130) { throw 'Sender exited with an error. Check the message above.' }

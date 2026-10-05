@@ -21,6 +21,9 @@ def main():
     parser.add_argument('--desktop', action='store_true',
                         help='Allow live mode off Frame (e.g. against PC SteamVR) to test the UDP path')
     parser.add_argument('--config', help='config.toml path (default: repository config.toml)')
+    parser.add_argument('--sync', action='store_true',
+                        help='Answer clock-sync requests from the PC (absolute latency measurement)')
+    parser.add_argument('--sync-port', type=int, default=9001)
     args = parser.parse_args()
     try:
         pc = str(ipaddress.IPv4Address(args.pc))
@@ -59,6 +62,11 @@ def main():
     # perf_counter: monotonic and fine-grained on every OS (monotonic() ticks every ~15.6 ms on Windows).
     start = next_tick = last_report = time.perf_counter()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    responder = None
+    if args.sync:  # optional: normal use opens no extra port
+        from general.clock_sync import Responder
+        responder = Responder(args.sync_port, allowed_ip=pc)
+        print(f'Clock sync: answering {pc} on UDP {args.sync_port}', flush=True)
     mode = 'DEMO' if args.demo else 'DESKTOP' if args.desktop else 'LOCAL FRAME'
     rate = f'{args.hz:g} Hz' if args.hz else 'unlimited rate'
     print(f'{mode}: sending to {pc}:{args.port} at {rate}; '
@@ -72,7 +80,8 @@ def main():
                 states = sampler.sample()
                 if sampler.quit_requested:
                     break
-            sock.sendto(encode_states(session, sequence, time.perf_counter_ns(), list(states.values()), groups),
+            read_ns = time.perf_counter_ns()  # packet timestamp = pose read time
+            sock.sendto(encode_states(session, sequence, read_ns, list(states.values()), groups),
                         (pc, args.port))
             sequence += 1
             if now - last_report >= 2:
@@ -95,6 +104,8 @@ def main():
             sock.sendto(encode_states(session, sequence, time.perf_counter_ns(), [], groups), (pc, args.port))
         finally:
             sock.close()
+            if responder:
+                responder.close()
             if vr:
                 vr.shutdown()
 

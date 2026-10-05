@@ -5,9 +5,13 @@ Close the viewer first (it uses the same port), then start the sender on Frame:
   python -m diagnostics.measure_udp_rate --sender-ip FRAME_IP --seconds 30
 
 It waits up to --wait seconds for the first packet, then measures for --seconds.
-Clocks are not synchronized, so latency is reported as variation above the
-fastest packet (one-way delay jitter), not as an absolute value; a sender on
-this PC (127.0.0.1) shares the clock, so its latency is reported absolutely.
+Without clock sync, latency is reported as variation above the fastest packet
+(one-way delay jitter). A sender on this PC (127.0.0.1) shares the clock, so its
+latency is absolute. With --sync (and the sender started with --sync), the
+Frame/PC clock offset is measured NTP-style during the run, which makes the
+latency absolute: pose read on Frame -> packet received here. "New-sample
+latency" is the same for the first packet carrying a new tracking sample; that
+sample appeared on Frame up to one send interval before it was read.
 
 Runtimes extrapolate poses, so a changed position does not prove new tracking
 data. The velocity only changes with a real tracking update, so "tracking
@@ -18,6 +22,7 @@ import json
 import socket
 import time
 from pathlib import Path
+from general.clock_sync import DEFAULT_PORT, ClockSync
 from general.pose_wire import MAX_PACKET, decode
 
 ARTIFACTS = Path(__file__).resolve().parent.parent / 'artifacts'
@@ -31,7 +36,7 @@ def percentiles(values):
     return {'min': values[0], 'median': pick(0.5), 'p95': pick(0.95), 'p99': pick(0.99), 'max': values[-1]}
 
 
-def measure(port=9000, sender_ip=None, seconds=30.0, wait=120.0, bind='0.0.0.0'):
+def measure(port=9000, sender_ip=None, seconds=30.0, wait=120.0, bind='0.0.0.0', sync_port=None):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sock.bind((bind, port))
@@ -44,6 +49,7 @@ def measure(port=9000, sender_ip=None, seconds=30.0, wait=120.0, bind='0.0.0.0')
     packets = []  # (receive ns, sequence, sender ns, groups, {name: (matrix, velocity)})
     rejected = {}  # reason -> count, so stray senders are visible
     deadline = time.monotonic() + wait
+    sync = ClockSync(sender_ip, sync_port) if sync_port and sender_ip else None
     try:
         while True:
             now = time.monotonic()
@@ -66,6 +72,8 @@ def measure(port=9000, sender_ip=None, seconds=30.0, wait=120.0, bind='0.0.0.0')
             if not packets:
                 end = time.monotonic() + seconds
                 first_session = session
+                if sync:
+                    sync.start(interval=2.0)  # background bursts while measuring
             if session != first_session:
                 # Another sender process on the same address (e.g. an old one still running).
                 key = f'other session from {source[0]}'
@@ -75,11 +83,26 @@ def measure(port=9000, sender_ip=None, seconds=30.0, wait=120.0, bind='0.0.0.0')
                             {s.name: (tuple(s.matrix), s.velocity) for s in states}))
     finally:
         sock.close()
-    return analyze(packets, rejected, same_clock=sender_ip in ('127.0.0.1', 'localhost'))
+        offset_fn = quality = None
+        if sync:
+            sync.stop()
+            if packets:
+                sync.burst()  # one more estimate at the end for the drift fit
+            offset_fn, quality = sync.offset_fn(), sync.quality()
+            sync.close()
+    result = analyze(packets, rejected, same_clock=sender_ip in ('127.0.0.1', 'localhost'),
+                     offset_fn=offset_fn)
+    if sync:
+        result['sync'] = quality or {'error': 'no replies (sender started without --sync, or UDP blocked)'}
+    return result
 
 
-def analyze(packets, rejected=None, same_clock=False):
+def analyze(packets, rejected=None, same_clock=False, offset_fn=None):
+    """offset_fn(local_ns) = sender clock minus local clock (from clock sync); same_clock = 0."""
     result = {'packets': len(packets), 'rejected': rejected or {}}
+    if same_clock:
+        offset_fn = lambda _: 0
+    to_local = (lambda sender_ns, local_ns: sender_ns - offset_fn(local_ns)) if offset_fn else None
     if len(packets) < 2:
         return result
     duration = (packets[-1][0] - packets[0][0]) / 1e9
@@ -100,7 +123,8 @@ def analyze(packets, rejected=None, same_clock=False):
         arrival_ms=arrival_stats, send_ms=percentiles(sent),
         arrival_gaps=sum(i > 3 * arrival_stats['median'] for i in arrival),
         delay_jitter_ms=percentiles([(o - best) / 1e6 for o in offsets]),
-        latency_ms=percentiles([o / 1e6 for o in offsets]) if same_clock else None,
+        latency_ms=percentiles([(p[0] - to_local(p[2], p[0])) / 1e6 for p in packets]) if to_local else None,
+        latency_source='same clock' if same_clock else 'clock sync' if to_local else None,
         controllers={})
     names = sorted({n for p in packets for n in p[4]})
     for name in names:
@@ -109,13 +133,20 @@ def analyze(packets, rejected=None, same_clock=False):
         tracked = [b[0] for a, b in zip(present, present[1:])
                    if b[4][name][1] is not None and b[4][name][1] != a[4][name][1]]
         has_velocity = any(p[4][name][1] is not None for p in present)
+        fresh = [(a, b) for a, b in zip(present, present[1:])
+                 if b[4][name][1] is not None and b[4][name][1] != a[4][name][1]]
         result['controllers'][name] = {
             'present_pct': 100 * len(present) / len(packets),
             'pose_update_hz': len(changes) / duration,
             'repeated_pct': 100 * (1 - len(changes) / max(1, len(present) - 1)),
             'update_interval_ms': percentiles([(b - a) / 1e6 for a, b in zip(changes, changes[1:])]),
             'tracking_update_hz': len(tracked) / duration if has_velocity else None,
-            'tracking_interval_ms': percentiles([(b - a) / 1e6 for a, b in zip(tracked, tracked[1:])])}
+            'tracking_interval_ms': percentiles([(b - a) / 1e6 for a, b in zip(tracked, tracked[1:])]),
+            # Read -> arrival of the first packet with a new sample; the sample itself
+            # appeared on Frame up to one send interval (bound) before that read.
+            'new_sample_latency_ms': percentiles([(b[0] - to_local(b[2], b[0])) / 1e6 for _, b in fresh])
+            if to_local and fresh else None,
+            'new_sample_bound_ms': percentiles([(b[2] - a[2]) / 1e6 for a, b in fresh]) if fresh else None}
     return result
 
 
@@ -133,14 +164,24 @@ def report(r):
     print(f'Arrival interval ms: {fmt(r["arrival_ms"])}; gaps >3x median: {r["arrival_gaps"]}')
     print(f'Send interval ms (Frame clock): {fmt(r["send_ms"])}')
     print(f'One-way delay variation ms (above fastest packet): {fmt(r["delay_jitter_ms"])}')
+    sync = r.get('sync')
+    if sync and 'error' in sync:
+        print(f'Clock sync: {sync["error"]}')
+    elif sync:
+        print(f'Clock sync: offset {sync["offset_ms"]:+.3f} ms, {sync["bursts"]} bursts, RTT min {sync["rtt_min_ms"]:.2f} / median '
+              f'{sync["rtt_median_ms"]:.2f} ms, error bound +/-{sync["error_bound_ms"]:.2f} ms, '
+              f'drift {sync["drift_ppm"]:.1f} ppm')
     if r.get('latency_ms'):
-        print(f'One-way latency ms (same clock, sender on this PC): {fmt(r["latency_ms"])}')
+        print(f'One-way latency ms, pose read -> received ({r["latency_source"]}): {fmt(r["latency_ms"])}')
     for name, c in r['controllers'].items():
         print(f'{name}: present {c["present_pct"]:.1f}% of packets; new pose {c["pose_update_hz"]:.1f} Hz '
               f'({c["repeated_pct"]:.1f}% repeated); update interval ms: {fmt(c["update_interval_ms"])}')
         if c['tracking_update_hz'] is not None:
             print(f'  tracking updates (velocity changes) {c["tracking_update_hz"]:.1f} Hz; '
                   f'interval ms: {fmt(c["tracking_interval_ms"])}')
+        if c.get('new_sample_latency_ms'):
+            print(f'  new-sample latency ms: {fmt(c["new_sample_latency_ms"])} '
+                  f'(+ up to {c["new_sample_bound_ms"]["median"]:.2f} ms median before the read)')
 
 
 def main():
@@ -151,9 +192,15 @@ def main():
     parser.add_argument('--seconds', type=float, default=30, help='Measurement length after the first packet')
     parser.add_argument('--wait', type=float, default=120, help='Max seconds to wait for the first packet')
     parser.add_argument('--label', help='Save results as artifacts/udp_rate_<label>.json')
+    parser.add_argument('--sync', action='store_true',
+                        help='Measure the clock offset (sender must run with --sync) for absolute latency')
+    parser.add_argument('--sync-port', type=int, default=DEFAULT_PORT)
     args = parser.parse_args()
+    if args.sync and not args.sender_ip:
+        parser.error('--sync needs --sender-ip')
     print(f'Listening on {args.bind}:{args.port}; waiting up to {args.wait:g} s for the first packet...', flush=True)
-    result = measure(args.port, args.sender_ip, args.seconds, args.wait, args.bind)
+    result = measure(args.port, args.sender_ip, args.seconds, args.wait, args.bind,
+                     args.sync_port if args.sync else None)
     report(result)
     if args.label:
         out = ARTIFACTS / f'udp_rate_{args.label}.json'

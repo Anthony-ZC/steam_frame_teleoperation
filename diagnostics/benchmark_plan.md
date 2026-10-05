@@ -1,7 +1,8 @@
 # Pending benchmark: fair streaming vs. standalone comparison
 
 Status: **done** (run 2026-10-04). Results: root README
-[Fair comparison](../README.md#fair-comparison-streaming-vs-standalone).
+[Data rate and timing](../README.md#data-rate-and-timing-streaming-vs-standalone),
+raw data in [results/data_rate/](results/data_rate/).
 Outcome of the open risks: 1b worked (Frame's local runtime and the PC stream
 ran together); velocity changes did reveal the real tracking rate (about
 217 Hz streaming, about 233 Hz standalone). Keep this file as the procedure
@@ -66,6 +67,39 @@ remeasure them too if the true tracking rate is wanted for those):
 python -m diagnostics.measure_udp_rate --sender-ip FRAME_WLANAP_IP --seconds 30 --label wlanap_unlimited
 .\non_pc_streaming\deploy_sender.ps1 -FrameHost FRAME_WLANAP_IP -PcAddress PC_DIRECT_IP -Hz 0
 ```
+
+## Absolute latency (clock sync)
+
+Status: **done** (run 2026-10-04). Results: root README
+[Absolute latency](../README.md#absolute-latency), raw data in
+[results/latency_absolute/](results/latency_absolute/). Open: why
+streaming lags about 17 ms with the Frame sender at 100/200 Hz but only about
+3-5 ms at the unlimited rate (reproduced twice each).
+
+Tools: `general/clock_sync.py`, sender `--sync`,
+`measure_udp_rate --sync`, `measure_latency --sync`. Deploy once with `-Sync`
+(new file), later run the sender directly over SSH with `--sync`. One listener
+at a time; start it before the sender.
+
+Phase A, stream off, PC SteamVR closed (standalone absolute + new-sample
+latency), for each path (direct link, home Wi‑Fi) and rate (100, 200, 0):
+
+```powershell
+python -m diagnostics.measure_udp_rate --sender-ip FRAME_IP --sync --seconds 30 --label abs_<path>_<rate>
+ssh -t steamos@FRAME_IP "cd ~/frame_pose_sender && python3 -m non_pc_streaming.frame_sender --pc PC_IP --hz <rate> --sync"
+```
+
+Phase B, stream on, dashboard closed (streaming absolute latency), Frame sender
+over the direct link at 100, 200, 0 Hz; move the controllers briskly:
+
+```powershell
+python -m diagnostics.measure_latency --sender-ip FRAME_WLANAP_IP --sync --seconds 20 --label abs_<rate>
+ssh -t steamos@FRAME_WLANAP_IP "cd ~/frame_pose_sender && python3 -m non_pc_streaming.frame_sender --pc PC_DIRECT_IP --hz <rate> --sync"
+```
+
+Check every result's sync line: error bound (expected about ±0.5 ms direct,
+±1.5 ms home Wi‑Fi) and "no replies" (sender started without `--sync`, or
+Frame blocks inbound UDP 9001).
 
 ## Open risks and caveats
 
