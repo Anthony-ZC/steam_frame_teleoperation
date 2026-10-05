@@ -1,0 +1,23 @@
+{
+  "controllers": {
+    "left": {
+      "standalone_minus_streaming_ms": 0.02320903825833832,
+      "correlation": 0.8672486011952719,
+      "streaming_samples_hz": 1590.3850509439028,
+      "standalone_samples_hz": 200.10425105472612,
+      "mean_speed_m_s": 0.19509183115315662,
+      "window_s": 19.394528986002115
+    },
+    "right": {
+      "standalone_minus_streaming_ms": -2.057890249698892,
+      "correlation": 0.8416703229620224,
+      "streaming_samples_hz": 1590.385301657162,
+      "standalone_samples_hz": 200.10425105472612,
+      "mean_speed_m_s": 0.17587281625868498,
+      "window_s": 19.394525834002707
+    }
+  },
+  "sync": {
+    "error": "no replies (sender started without --sync, or UDP blocked)"
+  }
+}

@@ -1,4 +1,4 @@
-"""Compare PC load and pose stability across streaming setups (Windows).
+"""Compare PC load and pose stability across streaming setups (Windows, Linux).
 
 Run once per setup (stream off, desktop minimized, desktop shown, lower bitrate...),
 then compare the saved runs:
@@ -6,10 +6,12 @@ then compare the saved runs:
   python -m diagnostics.measure_stream_load --label minimized --seconds 60
   python -m diagnostics.measure_stream_load --compare artifacts/stream_load_*.json
 
-Load comes from Windows performance counters (typeperf): total CPU, CPU of
+Load on Windows comes from performance counters (typeperf): total CPU, CPU of
 vr*/steam* processes, and GPU utilization per engine type (3D, VideoEncode...);
-plus NVENC statistics when nvidia-smi exists. Processes started after the run
-begins are not counted. Pose stability is measured as in measure_pose_rate.
+processes started after the run begins are not counted. On Linux it comes from
+/proc once per second (total CPU, vr*/steam* processes); there is no per-engine
+GPU split, use the NVIDIA rows. Both add NVENC statistics when nvidia-smi
+exists. Pose stability is measured as in measure_pose_rate.
 """
 import argparse
 import csv
@@ -19,6 +21,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -74,6 +77,37 @@ def read_typeperf(path, cores):
     return [aggregate(header, row, cores) for row in samples]
 
 
+def read_proc():
+    """Linux: (total jiffies, idle jiffies, {(pid, name): cpu jiffies}) of all cores."""
+    with open('/proc/stat', encoding='ascii') as file:
+        values = [int(v) for v in file.readline().split()[1:]]
+    processes = {}
+    for stat in Path('/proc').glob('[0-9]*/stat'):
+        try:
+            text = stat.read_text(encoding='utf-8', errors='replace')
+        except OSError:  # process ended
+            continue
+        name, fields = text[text.find('(') + 1:text.rfind(')')], text[text.rfind(')') + 2:].split()
+        if is_vr_process(name):
+            processes[(stat.parent.name, name)] = int(fields[11]) + int(fields[12])  # utime + stime
+    return sum(values[:8]), values[3] + values[4], processes  # idle + iowait
+
+
+def poll_proc(stop, samples):
+    """Linux: one sample per second in the shape of aggregate(); new processes are included."""
+    previous = read_proc()
+    while not stop.wait(1.0):
+        current = read_proc()
+        total = current[0] - previous[0]
+        if total > 0:
+            processes = defaultdict(float)
+            for key, jiffies in current[2].items():  # a new pid's jiffies all fall in this interval
+                processes[key[1]] += 100 * (jiffies - previous[2].get(key, 0)) / total
+            samples.append({'cpu_total': 100 * (1 - (current[1] - previous[1]) / total), 'gpu': {},
+                            'processes': dict(processes)})
+        previous = current
+
+
 def poll_nvidia(stop, results):
     query = 'utilization.gpu,utilization.encoder,encoder.stats.sessionCount,encoder.stats.averageFps'
     while not stop.wait(1.0):
@@ -103,23 +137,31 @@ def measure_poses(seconds, result):
 
 def run(label, seconds):
     cores = os.cpu_count() or 1
+    windows = os.name == 'nt'
     with tempfile.TemporaryDirectory() as tmp:
         counters_csv = Path(tmp, 'counters.csv')
-        typeperf = subprocess.Popen(['typeperf', *COUNTERS, '-si', '1', '-sc', str(int(seconds)),
-                                     '-f', 'CSV', '-o', str(counters_csv), '-y'],
-                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        stop, nvidia = threading.Event(), []
+        stop, nvidia, samples = threading.Event(), [], []
+        if windows:
+            typeperf = subprocess.Popen(['typeperf', *COUNTERS, '-si', '1', '-sc', str(int(seconds)),
+                                         '-f', 'CSV', '-o', str(counters_csv), '-y'],
+                                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            proc = threading.Thread(target=poll_proc, args=(stop, samples), daemon=True)
+            proc.start()
         if shutil.which('nvidia-smi'):
             threading.Thread(target=poll_nvidia, args=(stop, nvidia), daemon=True).start()
         result = {'label': label, 'started': time.strftime('%Y-%m-%d %H:%M:%S'), 'seconds': seconds,
-                  'cores': cores, 'pose': None, 'pose_error': None}
+                  'cores': cores, 'platform': sys.platform, 'pose': None, 'pose_error': None}
         measure_poses(seconds, result)
         stop.set()
-        try:
-            typeperf.wait(timeout=30)
-        except subprocess.TimeoutExpired:
-            typeperf.kill()
-        samples = read_typeperf(counters_csv, cores) if counters_csv.exists() else []
+        if windows:
+            try:
+                typeperf.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                typeperf.kill()
+            samples = read_typeperf(counters_csv, cores) if counters_csv.exists() else []
+        else:
+            proc.join(timeout=5)
     result['load_samples'] = len(samples)
     result['cpu_total'] = summary(s['cpu_total'] for s in samples)
     engtypes = sorted({e for s in samples for e in s['gpu']})
@@ -147,6 +189,7 @@ def print_run(r):
             print(f'GPU {engtype:14} mean {s["mean"]:5.1f}%  p95 {s["p95"]:5.1f}%')
     if r.get('nvidia'):
         n = r['nvidia']
+        print(f'NVIDIA GPU utilization: mean {n["gpu_util"]["mean"]:.1f}%  p95 {n["gpu_util"]["p95"]:.1f}%')
         print(f'NVENC: utilization mean {n["encoder_util"]["mean"]:.1f}%, sessions {n["encoder_sessions_max"]:g}, '
               f'avg fps {n["encoder_fps"]["mean"]:.1f}')
     if r['pose']:
@@ -165,6 +208,7 @@ def compare(paths):
             ('VR/Steam proc CPU %', lambda r: r.get('vr_processes_cpu_total')),
             ('GPU 3D mean %', lambda r: get(r, 'gpu', '3D', 'mean')),
             ('GPU VideoEncode mean %', lambda r: get(r, 'gpu', 'VideoEncode', 'mean')),
+            ('NVIDIA GPU util mean %', lambda r: get(r, 'nvidia', 'gpu_util', 'mean')),
             ('NVENC util mean %', lambda r: get(r, 'nvidia', 'encoder_util', 'mean')),
             ('NVENC sessions', lambda r: get(r, 'nvidia', 'encoder_sessions_max')),
             ('NVENC avg fps', lambda r: get(r, 'nvidia', 'encoder_fps', 'mean'))]

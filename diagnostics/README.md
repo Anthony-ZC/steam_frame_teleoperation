@@ -10,11 +10,12 @@ Run them from the repository root. Results are summarized in the root README
 | Tool | Runs on | What it answers |
 |---|---|---|
 | `probe_controller.py` | PC or Frame (numpy-free) | Which OpenVR runtime is found, which controllers exist, which data groups arrive and change; warns when the dashboard takes the input |
-| `measure_stream_load.py` | PC (Windows) | CPU/GPU/encoder cost of a setup and pose stability under it; `--compare` several runs |
+| `measure_stream_load.py` | PC (Windows, Linux) | CPU/GPU/encoder cost of a setup and pose stability under it; `--compare` several runs |
 | `measure_udp_rate.py` | PC (receiver) | UDP rate, loss, reordering, arrival/send intervals, delay jitter, new-pose rate, true tracking rate (velocity changes); absolute and new-sample latency with `--sync` (or a sender on this PC) |
 | `measure_latency.py` | PC | Relative latency standalone vs. streaming: both pipelines at once, cross-correlated speed traces; with `--sync` absolute latency of both modes from the Frame pose read |
 | `measure_pose_rate.py` | PC | How often PC SteamVR returns a changed pose, and the interval spread |
 | `diagnose_tracking.py` | PC | Whether poses differ as background app vs. scene app (`scene` takes VR focus) |
+| `run_ubuntu_wifi_benchmark.sh` | PC (Ubuntu) | Guided rerun of all benchmarks over home Wi‑Fi; see [benchmark_plan.md](benchmark_plan.md#ubuntu-home-wifi-only) |
 
 ```powershell
 python -m diagnostics.probe_controller --seconds 20          # --quiet: summary only

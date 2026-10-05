@@ -1,0 +1,99 @@
+{
+  "packets": 76791,
+  "rejected": {},
+  "duration_s": 30.000989765,
+  "rate_hz": 2559.5822205034506,
+  "lost": 564,
+  "loss_pct": 0.7291060694202055,
+  "duplicates": 0,
+  "reordered": 0,
+  "groups": [
+    "analog",
+    "battery",
+    "buttons",
+    "fingers",
+    "velocity"
+  ],
+  "arrival_ms": {
+    "min": 0.015542,
+    "median": 0.038352,
+    "p95": 1.348216,
+    "p99": 2.877539,
+    "max": 284.06063
+  },
+  "send_ms": {
+    "min": 0.233069,
+    "median": 0.252807,
+    "p95": 0.786286,
+    "p99": 1.919076,
+    "max": 114.457244
+  },
+  "arrival_gaps": 15754,
+  "delay_jitter_ms": {
+    "min": 0.0,
+    "median": 2.292712,
+    "p95": 100.652167,
+    "p99": 247.77558,
+    "max": 410.94376
+  },
+  "latency_ms": null,
+  "latency_source": null,
+  "controllers": {
+    "left": {
+      "present_pct": 100.0,
+      "pose_update_hz": 2559.5822205034506,
+      "repeated_pct": 0.0,
+      "update_interval_ms": {
+        "min": 0.015542,
+        "median": 0.038349,
+        "p95": 1.348216,
+        "p99": 2.877539,
+        "max": 284.06063
+      },
+      "tracking_update_hz": 231.02571129456203,
+      "tracking_interval_ms": {
+        "min": 0.016004,
+        "median": 1.858055,
+        "p95": 8.396727,
+        "p99": 75.84411,
+        "max": 346.77898
+      },
+      "new_sample_latency_ms": null,
+      "new_sample_bound_ms": {
+        "min": 0.234162,
+        "median": 0.427023,
+        "p95": 1.907618,
+        "p99": 2.253549,
+        "max": 114.457244
+      }
+    },
+    "right": {
+      "present_pct": 100.0,
+      "pose_update_hz": 2559.5822205034506,
+      "repeated_pct": 0.0,
+      "update_interval_ms": {
+        "min": 0.015542,
+        "median": 0.038349,
+        "p95": 1.348216,
+        "p99": 2.877539,
+        "max": 284.06063
+      },
+      "tracking_update_hz": 231.52569479902292,
+      "tracking_interval_ms": {
+        "min": 0.015876,
+        "median": 1.822103,
+        "p95": 8.66254,
+        "p99": 78.59964,
+        "max": 350.516984
+      },
+      "new_sample_latency_ms": null,
+      "new_sample_bound_ms": {
+        "min": 0.234058,
+        "median": 0.42895,
+        "p95": 1.929076,
+        "p99": 2.297975,
+        "max": 114.457244
+      }
+    }
+  }
+}

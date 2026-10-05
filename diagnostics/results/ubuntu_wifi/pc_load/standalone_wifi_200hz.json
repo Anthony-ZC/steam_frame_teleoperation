@@ -1,0 +1,40 @@
+{
+  "label": "ubuntu_wifi_standalone_200hz",
+  "started": "2026-10-05 13:47:03",
+  "seconds": 30.0,
+  "cores": 24,
+  "platform": "linux",
+  "pose": null,
+  "pose_error": "InitError_Init_NoServerForBackgroundApp: ",
+  "load_samples": 29,
+  "cpu_total": {
+    "mean": 1.7220098829708699,
+    "p95": 2.025630425795788,
+    "max": 8.4047327621379
+  },
+  "gpu": {},
+  "vr_processes_cpu": {
+    "steamwebhelper": 0.08134062374041916,
+    "steam": 0.06279794968068879,
+    "steam-runtime-l": 0.0
+  },
+  "vr_processes_cpu_total": 0.14413857342110795,
+  "nvidia": {
+    "gpu_util": {
+      "mean": 4.206896551724138,
+      "p95": 7.0,
+      "max": 7.0
+    },
+    "encoder_util": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "encoder_sessions_max": 0.0,
+    "encoder_fps": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    }
+  }
+}

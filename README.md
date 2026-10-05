@@ -42,13 +42,16 @@ the repository root with `python -m`, so imports work across folders. The
 headset side needs no installation: it uses Frame's Python 3.12, the standard
 library and the bundled OpenVR library.
 
-**Platforms:** everything was tested on Windows 11. On Ubuntu, the viewer, UDP
-receiver, logger, tests and UDP/latency measurement tools are plain Python and
-should work unchanged; PC streaming mode needs SteamVR for Linux (untested).
-Windows-only parts: `non_pc_streaming/deploy_sender.ps1` (manual Linux commands
-in [non_pc_streaming/README.md](non_pc_streaming/README.md#on-ubuntu-without-the-script)),
-the Windows Firewall commands (Ubuntu: `ufw`, below) and
-`diagnostics/measure_stream_load.py` (Windows performance counters).
+**Platforms:** tested on Windows 11 and, over home Wi‑Fi only, on Ubuntu 26.04
+(PC streaming with SteamVR for Linux, standalone mode and every measurement
+tool; see [Benchmarks](#benchmarks)). On Ubuntu the viewer needs a matplotlib
+GUI backend in the venv (`pip install PyQt6`, or `sudo apt install python3-tk`),
+otherwise it exits with "FigureCanvasAgg is non-interactive". Windows-only
+parts: `non_pc_streaming/deploy_sender.ps1` (manual Linux commands
+in [non_pc_streaming/README.md](non_pc_streaming/README.md#on-ubuntu-without-the-script))
+and the Windows Firewall commands (Ubuntu: `ufw`, below).
+`diagnostics/measure_stream_load.py` reads `/proc` on Linux (no per-engine GPU
+split). Ubuntu over home Wi‑Fi: `diagnostics/run_ubuntu_wifi_benchmark.sh`.
 
 ## Folder structure
 
@@ -198,7 +201,7 @@ Frame typically shows these interfaces:
 | Frame interface | What it is | Matching PC adapter |
 |---|---|---|
 | `wlan0` | Frame as a normal client of your home Wi‑Fi | the PC adapter on the same router subnet (it has a default gateway) |
-| `wlanap` | Frame's own access point: the **direct link** used for PC streaming | the PC adapter on the same subnet, with **no** default gateway (e.g. `Wi-Fi 6`) |
+| `wlanap` | Frame's own access point: the **direct link**, used by PC streaming together with Wi‑Fi | the PC adapter on the same subnet, with **no** default gateway (e.g. `Wi-Fi 6`) |
 | `usb0` | networking over a USB cable, if connected | – |
 
 Addresses from DHCP can change; check again if a connection stops working.
@@ -216,6 +219,23 @@ Addresses from DHCP can change; check again if a connection stops working.
 **Use the direct link** when it is available. Both deliver every packet and
 the same tracking rate; details in the
 [benchmarks](#data-rate-and-timing-streaming-vs-standalone).
+
+**Ubuntu: no direct link yet** (2026-10-05, Ubuntu 26.04, kernel 7.0). Frame's
+hotspot only uses 6 GHz, and Linux disables every 6 GHz channel while the
+Wi‑Fi region is unset (`iw reg get` shows `country 00`), so the adapter could
+not even see Frame. Setting the region fixes that, now and after reboots:
+
+```sh
+sudo iw reg set US                                                              # now
+echo 'options cfg80211 ieee80211_regdom=US' | sudo tee /etc/modprobe.d/cfg80211-regdom.conf  # at boot
+```
+
+(Use your own country code; undo with `sudo rm /etc/modprobe.d/cfg80211-regdom.conf`
+and a reboot.) The adapter (`rtw89_8852cu`) then sees Frame's hotspot, but
+joining still fails in the driver (`failed to insert STA entry for the AP
+(error -22)`): Valve requires kernel 7.2 or newer for this adapter. The
+region setting stays in place for then; until Ubuntu ships such a kernel, use
+home Wi‑Fi for both streaming and standalone.
 
 ### Allow the packets through the firewall
 
@@ -316,9 +336,18 @@ coordinates: [non_pc_streaming/README.md](non_pc_streaming/README.md).
 ## Benchmarks
 
 Test PC: Intel Core Ultra 7 270K Plus (24 cores), 48 GB RAM, NVIDIA GeForce
-RTX 5090 (32 GB, driver 617.14), Windows 11 Pro 10.0.26200, SteamVR build
-1789498647. Measured 2026-10-04 with the tools in [diagnostics/](diagnostics/README.md);
-the raw results behind every table are in
+RTX 5090 (32 GB), SteamVR build 1789498647, measured with the tools in
+[diagnostics/](diagnostics/README.md). Two runs on this PC:
+
+- **Windows 11 Pro** 10.0.26200, NVIDIA driver 617.14, 2026-10-04: direct link
+  and home Wi‑Fi. The sections from [PC load](#pc-load-and-pose-stability)
+  to [Clock sync method](#clock-sync-method).
+- **Ubuntu 26.04.1**, kernel 7.0, NVIDIA driver 595.91.07, 2026-10-05: home
+  Wi‑Fi only ([no direct link yet](#home-wifi-or-direct-link)), same tools,
+  same tables: [Ubuntu, home Wi‑Fi](#ubuntu-home-wifi).
+
+[Windows vs. Ubuntu](#windows-vs-ubuntu) at the end compares them. The raw
+results behind every table are in
 [diagnostics/results/](diagnostics/results/README.md).
 
 ### PC load and pose stability
@@ -522,6 +551,121 @@ to "now", so these are *effective* latencies, as seen by whoever receives the
 data; the tracking work inside the runtime (camera exposure, fusion) happens
 before the Frame read and is not included.
 
+### Ubuntu, home Wi‑Fi
+
+Same PC, same tools and settings as the Windows tables above, following the
+[Ubuntu procedure](diagnostics/benchmark_plan.md#ubuntu-home-wifi-only).
+There is no direct link on Ubuntu yet, so **every path uses home Wi‑Fi only**:
+the PC stream (Windows: Valve's combined streaming over the direct link plus
+Wi‑Fi) and the standalone sender. Raw results: [diagnostics/results/ubuntu_wifi/](diagnostics/results/README.md).
+
+Network round trip PC ↔ Frame (`ping`, 40 samples, min / avg / max): 5 / 11 /
+84 ms; two other checks that day gave 2.8 / 4.3 / 6.5 ms (20 samples) and
+4.7 / 16.8 / 106 ms (40 samples).
+
+**Stream stability.** The Wi‑Fi stream dropped at least three times in about
+20 minutes (once seconds after starting, once with a SteamVR crash that
+restarted it in safe mode, once between two runs), and SteamVR logged 0-4 video resets ("frame ID was not what
+we expected") per streaming run. Each run was checked against the vrlink log;
+the two runs during which the stream dropped were discarded and repeated.
+
+#### Ubuntu: PC load and pose stability
+
+`measure_stream_load`, 20 s per streaming run; standalone column: Frame sender
+over home Wi‑Fi at 200 Hz, PC SteamVR closed, 30 s, its pose rows from UDP
+arrival.
+
+| | Stream off | Stream, dashboard open | Stream, dashboard closed | Standalone (no stream) |
+|---|---|---|---|---|
+| CPU total, mean / p95 | 2.6% / 9.1% | 2.9% / 10.2% | 2.6% / 9.5% | 1.7% / 2.0% |
+| SteamVR/Steam processes CPU (of all cores) | 0.51% | 1.56% | 1.24% | 0.14% |
+| GPU, whole chip (`nvidia-smi`), mean | 7.2% | 8.6% | 8.3% | 4.2% |
+| Video encoder utilization | 0% | 31% | 30% | 0% |
+| Pose changes per controller (incl. extrapolated) | **0 (frozen)** | 807 Hz | 829 Hz | 200 Hz |
+| Natural tracking rate (real samples) | - | - | ≈ 197 Hz | ≈ 231 Hz |
+| Pose interval median / p95 / max | - | 1.2 / 1.4 / **185** ms | 1.2 / 1.3 / 62 ms | 4.2 / 6.6 / **254** ms |
+| Gaps > 3x median (per run) | - | 9 | 15 | 177 |
+
+- SteamVR for Linux encodes with Vulkan Video, not the NVENC API:
+  `nvidia-smi` shows the encoder busy but no NVENC session or fps, and Linux
+  has no per-engine GPU split (the Windows "GPU 3D" row). Encoder use is
+  about 30%, against 12% on Windows.
+- Keeping the stream alive costs about 0.7% CPU in SteamVR processes (stream
+  off 0.51%, dashboard closed 1.24%; Windows: about 1.2%).
+- PC SteamVR's poses stall for up to 60-185 ms: the controller data reaches
+  the PC over the same Wi‑Fi as the video (Windows, direct link + Wi‑Fi:
+  8.5 ms).
+
+#### Ubuntu: Data rate and timing
+
+`measure_udp_rate`, 30 s per run, both controllers moving, every `[fields]`
+group, dashboard closed. Streaming: sender on the PC against PC SteamVR, over
+loopback, with Frame streaming over home Wi‑Fi. Standalone: sender on Frame,
+via the router; stream off, PC SteamVR closed.
+
+| Setup | Send rate | Packets received | Real tracking samples | Sample interval median / p95 | Packet interval median / p99 / max | Lost packets | Delay variation median / p99 / max |
+|---|---|---|---|---|---|---|---|
+| Streaming | 100 Hz | 100 Hz | **86-87 Hz** | 10.0 / 19.8 ms | 10.0 / 10.7 / 11.9 ms | 0 | 0.27 / 0.44 / 0.64 ms (loopback) |
+| Streaming | 200 Hz | 200 Hz | **149-150 Hz** | 5.0 / 10.1 ms | 5.0 / 5.3 / 5.8 ms | 0 | 0.18 / 0.28 / 0.57 ms (loopback) |
+| Streaming | unlimited | 6755 Hz | **≈ 197 Hz** | 4.5-4.6 / 9.6 ms | 0.15 / 0.32 / 23.0 ms | 0 | 0.00 / 0.20 / 22.9 ms (loopback) |
+| Standalone, home Wi‑Fi | 100 Hz | 100 Hz | 99.7-99.9 Hz | 9.4 / 35.0 ms | 9.4 / 112.7 / **229.1** ms | 0 | 1.92 / **143.3 / 220.5** ms |
+| Standalone, home Wi‑Fi | 200 Hz | 200 Hz | 175.6-175.8 Hz | 4.3 / 10.5 ms | 4.1 / 102.8 / **214.2** ms | 0 | 2.27 / **172.7 / 210.7** ms |
+| Standalone, home Wi‑Fi | unlimited | 2560 Hz | **≈ 231 Hz** | 1.8-1.9 / 8.4-8.7 ms | 0.04 / 2.9 / **284.1** ms | **564 of 77,355** | 2.29 / **247.8 / 410.9** ms |
+
+Columns as in the [Windows table](#data-rate-and-timing-streaming-vs-standalone).
+
+- Frame's own tracking rate is unchanged (standalone: about 231 Hz, 175 Hz
+  at a 200 Hz send rate), but **every** standalone run stalled for 200-410 ms,
+  and the unlimited rate lost 0.7% of packets.
+- Streaming delivers fewer real samples than on Windows (86 / 150 / 197 Hz
+  against 100 / 170 / 217 Hz): when the Wi‑Fi stalls, PC SteamVR keeps
+  extrapolating, and samples lost on the way never arrive.
+
+#### Ubuntu: Absolute latency
+
+**Standalone** (stream off, PC SteamVR closed; `measure_udp_rate --sync`):
+
+| Path | Send rate | Median | p95 | p99 | Max | Sync error bound | Sample age at read, up to |
+|---|---|---|---|---|---|---|---|
+| Home Wi‑Fi | 100 Hz | 3.39 ms | **89.6 ms** | **119.5 ms** | **200.0 ms** | ±1.38 ms | 10 ms |
+| Home Wi‑Fi | 200 Hz | 4.27 ms | **119.1 ms** | **183.2 ms** | **251.8 ms** | ±1.36 ms | 5 ms |
+| Home Wi‑Fi | unlimited (about 2500 Hz) | 2.84 ms | **95.3 ms** | **162.1 ms** | **212.8 ms** | ±1.32 ms | 0.43 ms |
+
+311 of about 75,800 packets were lost at the unlimited rate, none at 100 and
+200 Hz.
+
+**Streaming** (stream on over home Wi‑Fi; `measure_latency --sync`, the Frame
+sender over the same Wi‑Fi):
+
+| Frame sender rate | Streaming latency, left / right | Standalone travel time, median (p95) | Correlation, streaming | Sync error bound |
+|---|---|---|---|---|
+| 100 Hz | +5.8 / +1.3 ms | 3.23 ms (84.1 ms) | 0.96 / 0.97 | ±1.35 ms |
+| 200 Hz | +16.6 / +10.6 ms | 3.77 ms (151.3 ms) | 0.80 / 0.74 | ±1.41 ms |
+| unlimited | +12.5 / +22.8 ms | 3.65 ms (59.9-62.7 ms) | 0.68 / 0.76 | ±1.48 ms |
+
+- Standalone over home Wi‑Fi: about 3-4 ms at the median, as on Windows,
+  but a p95 of 60-150 ms in every run.
+- Streaming latency: 1-23 ms, with weaker trace matches than on Windows
+  (0.68-0.97 against 1.00), because both traces have Wi‑Fi gaps. Treat the
+  200 Hz and unlimited values as rough (about ±5-10 ms). The Windows pattern
+  (17 ms at 100/200 Hz, 3 ms at unlimited) did not reappear.
+
+#### Ubuntu: Relative latency
+
+`measure_latency` without clock sync, Frame sender over home Wi‑Fi, streaming
+(PC SteamVR, polled at about 1550-1600 Hz) as the reference:
+
+| Standalone path | Standalone send rate | Standalone vs. streaming, left | Right | Correlation, left / right |
+|---|---|---|---|---|
+| Home Wi‑Fi | 100 Hz | −0.4 ms | −0.6 ms | 0.88 / 0.91 |
+| Home Wi‑Fi | 200 Hz | +0.0 ms | −2.1 ms | 0.87 / 0.84 |
+| Home Wi‑Fi | unlimited (about 2700 Hz) | +0.5 ms | −2.6 ms | 0.91 / 0.96 |
+
+All six values lie between 2.6 ms earlier and 0.5 ms later: with both modes
+on the same Wi‑Fi, standalone arrives about as early as streaming. (The 200 Hz
+run is a `measure_latency --sync` attempt whose sender was started without
+`--sync`; without sync replies it is exactly this measurement.)
+
 ### Method notes
 
 - The PC load table's streaming pose rows come from local polling, the
@@ -531,8 +675,57 @@ before the Frame read and is not included.
   [diagnostics/benchmark_plan.md](diagnostics/benchmark_plan.md).
 - Both runtimes extrapolate poses: a changed position is not proof of a new
   tracking sample; velocity changes are.
-- One run per configuration on one PC and one network; rerun on other
-  hardware before generalizing.
+- One run per configuration and operating system, on one PC and one network;
+  rerun on other hardware before generalizing.
+
+### Windows vs. Ubuntu
+
+Same PC, headset, SteamVR build and tools; the networks differ. On Windows
+the stream used Valve's combined streaming over the direct link plus Wi‑Fi; on
+Ubuntu everything used home Wi‑Fi alone, which was also slower on the Ubuntu
+day (round trip max 84-106 ms against 18 ms). A
+difference below is therefore mostly **network**, not operating system,
+unless it does not cross the Wi‑Fi (tracking rate, PC load).
+
+| What | Windows | Ubuntu (home Wi‑Fi only) |
+|---|---|---|
+| Ping PC ↔ Frame, min / avg / max | direct link 1 / 1 / 5 ms; home Wi‑Fi 3 / 4 / 18 ms | home Wi‑Fi 5 / 11 / 84 ms |
+| **Standalone, home Wi‑Fi** | | |
+| Latency, median | 2.4-3.1 ms | 2.8-4.3 ms |
+| Latency, p99 | 5.5-147 ms | 119-183 ms |
+| Worst stall (delay variation or latency max) | 22-186 ms | 200-411 ms |
+| Runs with stalls > 100 ms | 2 of 6 | 6 of 6 |
+| Lost packets | 0 | 0 at 100/200 Hz; 0.4-0.7% at unlimited |
+| Real tracking samples at 100 / 200 Hz / unlimited | 100 / 174-177 / ≈ 233 Hz | 100 / 175-176 / ≈ 231 Hz |
+| **Streaming** (Windows: direct link + Wi‑Fi; Ubuntu: Wi‑Fi only) | | |
+| Real tracking samples at 100 / 200 Hz / unlimited | 100 / 168-171 / ≈ 217 Hz | 86-87 / 149-150 / ≈ 197 Hz |
+| Streaming latency at 100 / 200 Hz / unlimited | +17 / +17 / +3 ms (correlation 1.00) | +1-6 / +11-17 / +13-23 ms (correlation 0.68-0.97) |
+| Standalone vs. streaming (relative) | −15.2 to +2.6 ms | −2.6 to +0.5 ms |
+| PC SteamVR pose interval max, dashboard closed | 8.5 ms | 62 ms |
+| Stream drops during the session | not recorded | at least 3, one with a SteamVR crash |
+| **PC load**, stream on, dashboard closed | | |
+| SteamVR/Steam processes CPU | 1.7% | 1.24% |
+| Video encoder | NVENC, 12%, 183 fps | Vulkan Video, 30% (no session/fps reported) |
+| Standalone receiving, SteamVR closed | 0% SteamVR CPU, encoder idle | 0.14% Steam CPU, encoder idle |
+
+Findings:
+
+- **Frame's tracking does not depend on the PC's OS.** Its own tracking rate
+  (standalone, about 231-233 Hz; 175 Hz at a 200 Hz send rate) was the same
+  in both runs.
+- **On Ubuntu, home Wi‑Fi limits both modes.** Standalone stalled in every
+  run instead of 2 of 6, and streaming lost 9-14% of real tracking samples
+  and dropped repeatedly: without the direct link, the combined stream has
+  only home Wi‑Fi left. On Windows the direct link carried it alongside
+  Wi‑Fi.
+- **Streaming latency is not comparable yet.** The Ubuntu values range from
+  1 to 23 ms with weak trace matches; the Windows rate pattern (17 ms, 3 ms at
+  unlimited) did not reappear. Standalone was never later than streaming on
+  either OS.
+- **Linux encodes the stream with more effort** (Vulkan Video, about 30%
+  encoder against 12% NVENC); CPU cost is similar and small on both.
+- **Next:** rerun the Ubuntu benchmark over the direct link once a 7.2+
+  kernel lets the adapter join; that run isolates the operating system.
 
 ## Tests
 

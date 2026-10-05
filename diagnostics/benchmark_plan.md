@@ -112,3 +112,33 @@ Frame blocks inbound UDP 9001).
   reference (e.g. high-speed video of the controller and the viewer).
 - Stop every sender window between runs (`pgrep`/`pkill` commands in the root
   README); a leftover sender shows up as "other session" rejections.
+
+## Ubuntu, home Wi‑Fi only
+
+Status: **done** (run 2026-10-05). Results: root README
+[Ubuntu, home Wi‑Fi](../README.md#ubuntu-home-wifi) and
+[Windows vs. Ubuntu](../README.md#windows-vs-ubuntu), raw data in
+[results/ubuntu_wifi/](results/ubuntu_wifi/). The run was driven by hand with
+the same commands; check the vrlink log (`Connection inactive`) after every
+streaming run, the Wi‑Fi stream dropped several times. Same PC, Ubuntu 26.04 (kernel 7.0). The Frame wireless
+adapter needs kernel 7.2+, so there is no direct link: the PC stream and the
+standalone sender both use home Wi‑Fi. Compared with the Windows run, the
+streaming rows therefore change path (Wi‑Fi only instead of Valve's combined
+direct link + Wi‑Fi streaming) and the standalone direct-link rows are dropped.
+
+`diagnostics/run_ubuntu_wifi_benchmark.sh FRAME_WLAN0_IP PC_IP` runs the whole
+matrix with a pause before every setup change, labels `ubuntu_wifi_*`:
+
+| Phase | Setup | Runs |
+|---|---|---|
+| `deploy`, `ping` | – | upload the sender; 40-sample round trip |
+| `load` | SteamVR on: stream off / dashboard open / dashboard closed | `measure_stream_load`, 20 s each |
+| `streaming` | stream on over Wi‑Fi, dashboard closed | data rate on loopback (`--desktop`), `measure_latency --sync`, `measure_latency`; 100, 200, 0 Hz |
+| `standalone` | stream off, PC SteamVR quit | `measure_udp_rate`, `measure_udp_rate --sync`, load at 200 Hz; 100, 200, 0 Hz |
+
+Phases can be run alone (`... FRAME_IP PC_IP streaming`). Before the first
+run, accept Frame's host key once (`ssh steamos@FRAME_WLAN0_IP true`); the
+script uses non-interactive SSH. Linux differences: the load tool reads
+`/proc` (no per-engine GPU split; use the NVIDIA rows), and SteamVR encodes
+with Vulkan Video, so `nvidia-smi` shows encoder utilization but 0 NVENC
+sessions and fps.

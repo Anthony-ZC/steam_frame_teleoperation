@@ -1,0 +1,43 @@
+{
+  "controllers": {
+    "left": {
+      "standalone_minus_streaming_ms": 1.4247345584671858,
+      "correlation": 0.9386314672891628,
+      "streaming_samples_hz": 1600.4803829512725,
+      "standalone_samples_hz": 100.06400927149875,
+      "mean_speed_m_s": 0.12889401015431642,
+      "window_s": 19.38190874519387,
+      "streaming_latency_ms": 5.762070867095572,
+      "streaming_correlation": 0.9615821220216283,
+      "standalone_latency_ms": {
+        "median": 3.231540322303772,
+        "p95": 84.12141960252484,
+        "max": 346.4027486406849
+      }
+    },
+    "right": {
+      "standalone_minus_streaming_ms": 1.8409563365268298,
+      "correlation": 0.92774471861266,
+      "streaming_samples_hz": 1600.48049640078,
+      "standalone_samples_hz": 100.06400927149875,
+      "mean_speed_m_s": 0.10807024109762552,
+      "window_s": 19.381903534193043,
+      "streaming_latency_ms": 1.3122962462962584,
+      "streaming_correlation": 0.9661682211322538,
+      "standalone_latency_ms": {
+        "median": 3.231540322303772,
+        "p95": 84.12141960252484,
+        "max": 346.4027486406849
+      }
+    }
+  },
+  "sync": {
+    "bursts": 10,
+    "exchanges": 388,
+    "offset_ms": -1515577.785951595,
+    "rtt_min_ms": 2.699917,
+    "rtt_median_ms": 4.60206,
+    "error_bound_ms": 1.3499585,
+    "drift_ppm": -31.94343147723747
+  }
+}

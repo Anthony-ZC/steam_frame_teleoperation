@@ -1,0 +1,70 @@
+{
+  "label": "ubuntu_wifi_stream_on_dashboard_closed",
+  "started": "2026-10-05 13:59:21",
+  "seconds": 20.0,
+  "cores": 24,
+  "platform": "linux",
+  "pose": {
+    "elapsed_s": 20.00002243600011,
+    "polls": 16772,
+    "devices": {
+      "1": {
+        "valid_polls": 16772,
+        "changes": 16586,
+        "rate_hz": 829.2990696922991,
+        "min_ms": 1.0502629993425217,
+        "median_ms": 1.1818539996966138,
+        "p95_ms": 1.3091199998598313,
+        "max_ms": 62.21672700030467,
+        "gaps": 15
+      },
+      "2": {
+        "valid_polls": 16772,
+        "changes": 16585,
+        "rate_hz": 829.249069748389,
+        "min_ms": 1.0502629993425217,
+        "median_ms": 1.181857000119635,
+        "p95_ms": 1.3091199998598313,
+        "max_ms": 58.6520560000281,
+        "gaps": 15
+      }
+    }
+  },
+  "pose_error": null,
+  "load_samples": 19,
+  "cpu_total": {
+    "mean": 2.5539467576761457,
+    "p95": 9.545454545454547,
+    "max": 9.545454545454547
+  },
+  "gpu": {},
+  "vr_processes_cpu": {
+    "vrserver": 0.5313069392177898,
+    "vrcompositor": 0.3345011689095411,
+    "steamwebhelper": 0.17269935797568298,
+    "vrwebhelper": 0.13107277505428258,
+    "steam": 0.05904978121852275,
+    "vrdashboard": 0.00876654865752052,
+    "vrmonitor": 0.00437048629567199,
+    "steam-runtime-l": 0.0
+  },
+  "vr_processes_cpu_total": 1.2417670573290118,
+  "nvidia": {
+    "gpu_util": {
+      "mean": 8.31578947368421,
+      "p95": 10.0,
+      "max": 10.0
+    },
+    "encoder_util": {
+      "mean": 30.0,
+      "p95": 32.0,
+      "max": 32.0
+    },
+    "encoder_sessions_max": 0.0,
+    "encoder_fps": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    }
+  }
+}
