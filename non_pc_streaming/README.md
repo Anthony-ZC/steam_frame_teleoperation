@@ -5,10 +5,9 @@ runtime and sends controller data to the PC over UDP. No video, no PC
 SteamVR. Verified live on Frame on 2026-10-04 (both controllers, every data
 group).
 
-Setup, finding the IP addresses, home Wi‑Fi vs. direct link, the firewall
-rule and the everyday commands are in the root README:
-[Standalone mode](../README.md#standalone-mode). This page covers what happens
-underneath.
+The deployment steps are in the root README:
+[Standalone mode](../README.md#standalone-mode). This page covers the network
+choice, firewall and SSH details, cleanup and what happens underneath.
 
 | File | Runs on | Purpose |
 |---|---|---|
@@ -16,6 +15,92 @@ underneath.
 | `udp_pose.py` | PC | `UDPReader`: receives, validates, hands poses to the viewer |
 | `deploy_sender.ps1` | PC | packages, uploads and runs the sender or probe over SSH |
 | `vendor/` | Frame | unmodified pyopenvr + Valve's Linux ARM64 `libopenvr_api` (licenses, provenance) |
+
+## Network: home Wi‑Fi or direct link?
+
+On Frame, `ip -brief -4 addr` (LXTerminal) typically shows:
+
+| Frame interface | What it is | Matching PC adapter |
+|---|---|---|
+| `wlan0` | Frame as a normal client of your home Wi‑Fi | the PC adapter on the same router subnet (it has a default gateway) |
+| `wlanap` | Frame's own access point: the **direct link**, used by PC streaming together with Wi‑Fi | the PC adapter on the same subnet, with **no** default gateway (e.g. `Wi-Fi 6`) |
+| `usb0` | networking over a USB cable, if connected | – |
+
+| | Home Wi‑Fi (`wlan0`) | Direct link (`wlanap`) |
+|---|---|---|
+| Path | Frame → router → PC | Frame → PC, no router |
+| Round trip (ping) | about 4 ms avg, up to 18 ms | about 1 ms avg, up to 5 ms |
+| Delay variation (p99) | 4-6 ms in good runs, **130+ ms** in bad ones | about 3 ms in every run |
+| Worst stall | up to about 190 ms (in 2 of 6 runs) | about 20-40 ms |
+| Needs | both devices on the same router | the PC's streaming adapter connected to Frame (stayed up with PC SteamVR closed) |
+
+**Use the direct link** when it is available. Both deliver every packet and
+the same tracking rate; details in the
+[benchmarks](../diagnostics/README.md#data-rate-and-timing-streaming-vs-standalone).
+Addresses from DHCP can change; check again if a connection stops working.
+
+### Ubuntu: no direct link yet
+
+(2026-10-05, Ubuntu 26.04, kernel 7.0.) Frame's hotspot only uses 6 GHz, and
+Linux disables every 6 GHz channel while the Wi‑Fi region is unset (`iw reg
+get` shows `country 00`), so the adapter could not even see Frame. Setting the
+region fixes that, now and after reboots:
+
+```sh
+sudo iw reg set US                                                              # now
+echo 'options cfg80211 ieee80211_regdom=US' | sudo tee /etc/modprobe.d/cfg80211-regdom.conf  # at boot
+```
+
+(Use your own country code; undo with `sudo rm /etc/modprobe.d/cfg80211-regdom.conf`
+and a reboot.) The adapter (`rtw89_8852cu`) then sees Frame's hotspot, but
+joining still fails in the driver (`failed to insert STA entry for the AP
+(error -22)`): Valve requires kernel 7.2 or newer for this adapter. Until
+Ubuntu ships such a kernel, use home Wi‑Fi for both streaming and standalone.
+
+## Firewall rule upkeep
+
+The root README adds one inbound rule for UDP 9000. On Windows, update it if
+Frame's address changes, or remove it:
+
+```powershell
+Set-NetFirewallRule -DisplayName "Frame pose UDP 9000" -RemoteAddress FRAME_WLAN0_IP,FRAME_WLANAP_IP
+Remove-NetFirewallRule -DisplayName "Frame pose UDP 9000"
+```
+
+SSH needs no rule (outgoing from the PC).
+
+## Test the UDP path on the PC first
+
+Against PC SteamVR, without Frame in the loop:
+
+```powershell
+python -m non_pc_streaming.frame_sender --desktop --pc 127.0.0.1
+```
+
+## Log in without a password (SSH key, once)
+
+Without a key, every `ssh`/`scp` call asks for the Frame password, and one
+deploy makes four of them. Once, on the PC:
+
+```powershell
+ssh-keygen -t ed25519      # press Enter at the prompts (a passphrase is optional)
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh steamos@FRAME_IP "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+```
+
+On Ubuntu: `ssh-keygen -t ed25519`, then `ssh-copy-id steamos@FRAME_IP`. The
+key then works for both Frame addresses (same headset, same user).
+
+## Stop and clean up
+
+```powershell
+ssh steamos@FRAME_IP "pgrep -af '[n]on_pc_streaming.frame_sender|[d]iagnostics.probe_controller'"        # what runs
+ssh steamos@FRAME_IP "pkill -f '[n]on_pc_streaming.frame_sender'; pkill -f '[d]iagnostics.probe_controller'"  # stop all
+ssh steamos@FRAME_IP "rm -rf ~/frame_pose_sender"                                                          # remove files
+```
+
+The sender normally ends with its SSH session; leftovers come from a second
+deploy window. Everything lives in `~/frame_pose_sender`: no root, no system
+packages, no background service.
 
 ## What `deploy_sender.ps1` does
 
@@ -33,7 +118,7 @@ Every run:
    - `-Demo`: synthetic poses and inputs, to test the network alone;
    - `-Probe` (`-ProbeSeconds N`): the controller probe instead of the sender.
 
-Expect one password prompt per `ssh`/`scp` call (4 per run), or none with an SSH key ([root README](../README.md#optional-log-in-without-a-password-ssh-key-once)). Verify the SSH
+Expect one password prompt per `ssh`/`scp` call (4 per run), or none with an [SSH key](#log-in-without-a-password-ssh-key-once). Verify the SSH
 host key on first connection. Credentials are never stored. Nothing is
 installed system-wide and nothing keeps running after the SSH session ends.
 
@@ -129,4 +214,4 @@ groups). Two controllers: about 13-29 kB/s at 90 Hz, about 64 kB/s at 200 Hz (al
 - If local background OpenVR access ever stops working (runtime update), the
   fallback is a native ARM64 or Android OpenXR app.
 
-Measured performance: root README [Benchmarks](../README.md#benchmarks).
+Measured performance: [diagnostics/README.md](../diagnostics/README.md#benchmarks).

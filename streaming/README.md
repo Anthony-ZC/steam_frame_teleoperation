@@ -28,4 +28,4 @@ absolute (during the settle countdown) or relative.
 With the stream off, SteamVR still reports the controllers as tracked but the
 poses freeze. Probes and measurements live in
 [diagnostics/](../diagnostics/README.md); measured load and stability are in the
-root README [Benchmarks](../README.md#benchmarks).
+[Benchmarks](../diagnostics/README.md#benchmarks).

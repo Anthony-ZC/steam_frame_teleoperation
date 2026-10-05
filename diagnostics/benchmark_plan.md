@@ -1,8 +1,8 @@
 # Pending benchmark: fair streaming vs. standalone comparison
 
-Status: **done** (run 2026-10-04). Results: root README
-[Data rate and timing](../README.md#data-rate-and-timing-streaming-vs-standalone),
-raw data in [results/data_rate/](results/data_rate/).
+Status: **done** (run 2026-10-04). Results:
+[Data rate and timing](README.md#data-rate-and-timing-streaming-vs-standalone),
+raw data in [results/windows/data_rate/](results/windows/data_rate/).
 Outcome of the open risks: 1b worked (Frame's local runtime and the PC stream
 ran together); velocity changes did reveal the real tracking rate (about
 217 Hz streaming, about 233 Hz standalone). Keep this file as the procedure
@@ -70,9 +70,9 @@ python -m diagnostics.measure_udp_rate --sender-ip FRAME_WLANAP_IP --seconds 30 
 
 ## Absolute latency (clock sync)
 
-Status: **done** (run 2026-10-04). Results: root README
-[Absolute latency](../README.md#absolute-latency), raw data in
-[results/latency_absolute/](results/latency_absolute/). Open: why
+Status: **done** (run 2026-10-04). Results:
+[Absolute latency](README.md#absolute-latency), raw data in
+[results/windows/latency_absolute/](results/windows/latency_absolute/). Open: why
 streaming lags about 17 ms with the Frame sender at 100/200 Hz but only about
 3-5 ms at the unlimited rate (reproduced twice each).
 
@@ -115,9 +115,9 @@ Frame blocks inbound UDP 9001).
 
 ## Ubuntu, home Wi‑Fi only
 
-Status: **done** (run 2026-10-05). Results: root README
-[Ubuntu, home Wi‑Fi](../README.md#ubuntu-home-wifi) and
-[Windows vs. Ubuntu](../README.md#windows-vs-ubuntu), raw data in
+Status: **done** (run 2026-10-05). Results:
+[Ubuntu, home Wi‑Fi](README.md#ubuntu-home-wifi) and
+[Windows vs. Ubuntu](README.md#windows-vs-ubuntu), raw data in
 [results/ubuntu_wifi/](results/ubuntu_wifi/). The run was driven by hand with
 the same commands; check the vrlink log (`Connection inactive`) after every
 streaming run, the Wi‑Fi stream dropped several times. Same PC, Ubuntu 26.04 (kernel 7.0). The Frame wireless
